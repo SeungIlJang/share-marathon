@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>마라톤 프로토 · 5K</title>
+<style>
+  :root{ --bg:#0d1117; --panel:#161b22cc; --line:#30363d;
+    --ok:#3fb950; --warn:#d29922; --bad:#f85149; --accent:#58a6ff; --txt:#e6edf3; --dim:#8b949e; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;touch-action:none;}
+  #app{position:fixed;inset:0;}
+  #scene{position:absolute;inset:0;width:100%;height:100%;display:block;}
+
+  #hud{position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 8px) 10px 6px;display:flex;gap:8px;z-index:3;}
+  .card{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 8px;text-align:center;backdrop-filter:blur(6px);}
+  .card .lbl{font-size:10px;color:var(--dim);letter-spacing:.5px;}
+  .card .val{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1;}
+  .card .val small{font-size:11px;color:var(--dim);font-weight:600;}
+
+  #coach{position:absolute;top:calc(env(safe-area-inset-top) + 62px);left:0;right:0;text-align:center;
+    font-size:16px;font-weight:900;z-index:3;pointer-events:none;text-shadow:0 1px 4px #000;transition:color .2s;}
+
+  #target{position:absolute;top:calc(env(safe-area-inset-top) + 90px);left:10px;right:10px;z-index:3;
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px 10px;backdrop-filter:blur(6px);}
+  #target .tl{font-size:12px;color:var(--txt);text-align:center;margin-bottom:5px;}
+  #target .tl b{color:var(--ok);}
+  #cadGauge{position:relative;height:12px;background:#21262d;border-radius:6px;overflow:hidden;}
+  #cadZone{position:absolute;top:0;bottom:0;background:#3fb95033;border-left:2px solid #3fb950;border-right:2px solid #3fb950;}
+  #cadMark{position:absolute;top:-2px;width:4px;height:16px;background:#fff;border-radius:2px;margin-left:-2px;transition:left .1s linear,background .15s;}
+  #cadGauge .tick{position:absolute;top:0;bottom:0;width:1px;background:#ffffff14;}
+  #meters{position:absolute;left:10px;right:10px;bottom:calc(30% + 8px);display:flex;gap:8px;z-index:3;}
+  .meter{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px 8px;backdrop-filter:blur(6px);}
+  .meter .lbl{font-size:9px;color:var(--dim);display:flex;justify-content:space-between;letter-spacing:.4px;}
+  .mtrack{height:8px;background:#21262d;border-radius:5px;overflow:hidden;margin-top:4px;}
+  .mfill{height:100%;width:100%;transition:width .12s linear,background .2s;}
+
+  #pads{position:absolute;left:0;right:0;bottom:0;height:30%;display:flex;gap:10px;padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);z-index:3;}
+  .pad{flex:1;border-radius:20px;border:3px solid var(--line);background:#161b22ee;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+    font-size:42px;font-weight:900;color:#586069;transition:transform .05s,background .08s,border-color .08s,color .08s;}
+  .pad small{font-size:13px;font-weight:700;color:#586069;}
+  .pad.hit{transform:scale(.96);background:#1f6feb33;border-color:var(--accent);color:var(--accent);}
+  .pad.bad{background:#f8514933;border-color:var(--bad);color:var(--bad);}
+  .pad.next{border-color:var(--ok);color:var(--ok);animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 2px #3fb95033,0 0 14px #3fb95044 inset}50%{box-shadow:0 0 0 3px #3fb95088,0 0 26px #3fb95099 inset}}
+
+  .overlay{position:absolute;inset:0;background:#0d1117e8;backdrop-filter:blur(3px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;z-index:10;}
+  .overlay h1{font-size:28px;margin:0;}
+  .overlay p{color:var(--dim);margin:0;max-width:340px;line-height:1.55;font-size:15px;}
+  .demo{display:flex;gap:12px;align-items:center;font-size:14px;}
+  .key{display:inline-flex;width:50px;height:50px;border-radius:12px;border:2px solid var(--ok);color:var(--ok);align-items:center;justify-content:center;font-size:22px;font-weight:900;}
+  .key.b{border-color:var(--accent);color:var(--accent);}
+  #distSel{display:flex;gap:8px;}
+  .dbtn{background:#161b22;border:2px solid var(--line);color:var(--dim);border-radius:12px;padding:12px 16px;font-size:17px;font-weight:800;}
+  .dbtn.sel{border-color:var(--accent);color:var(--accent);background:#1f6feb22;}
+  .dbtn.locked{opacity:.45;color:#586069;border-style:dashed;}
+  .btn{background:var(--accent);color:#04101f;border:none;border-radius:14px;padding:16px 30px;font-size:19px;font-weight:900;}
+  .finTime{font-size:52px;font-weight:900;font-variant-numeric:tabular-nums;}
+  .delta{font-size:18px;font-weight:800;}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="scene"></canvas>
+  <div id="hud">
+    <div class="card"><div class="lbl">기록 TIME</div><div class="val" id="clock">00:00</div></div>
+    <div class="card"><div class="lbl">페이스 PACE</div><div class="val" id="pace">--<small>/km</small></div></div>
+    <div class="card"><div class="lbl">케이던스</div><div class="val" id="cad">0<small>spm</small></div></div>
+  </div>
+  <div id="coach">L·R 번갈아 두드려요</div>
+  <div id="target">
+    <div class="tl">🎯 목표 <b id="tCad">175</b> spm · <b id="tPace">--</b>/km · 완주 <b id="tTime">--</b></div>
+    <div id="cadGauge"><div id="cadZone"></div><div id="cadMark" style="left:0"></div></div>
+  </div>
+  <div id="meters">
+    <div class="meter"><div class="lbl"><span>폼 안정도</span><span id="formPct">--</span></div>
+      <div class="mtrack"><div class="mfill" id="formFill" style="background:var(--ok)"></div></div></div>
+    <div class="meter"><div class="lbl"><span>글리코겐(체력)</span><span id="glyPct">100%</span></div>
+      <div class="mtrack"><div class="mfill" id="glyFill" style="background:var(--accent)"></div></div></div>
+  </div>
+  <div id="pads">
+    <div class="pad next" id="padL">L<small>◀ 왼발</small></div>
+    <div class="pad" id="padR">R<small>오른발 ▶</small></div>
+  </div>
+</div>
+
+<div class="overlay" id="startScreen">
+  <h1>🏃‍♂️ 마라톤</h1>
+  <p><b>왼발 L</b> · <b>오른발 R</b> 번갈아 두드려 달립니다.</p>
+  <div class="demo"><span class="key">L</span><span>→</span><span class="key b">R</span><span>→</span><span class="key">L</span><span>→</span><span class="key b">R</span></div>
+  <div id="distSel">
+    <button class="dbtn sel" data-d="5K">5K</button>
+    <button class="dbtn" data-d="10K">10K</button>
+    <button class="dbtn" data-d="하프">하프</button>
+    <button class="dbtn" data-d="풀">풀</button>
+  </div>
+  <p id="goalP">🎯 목표: <b>175spm</b> · 4:53/km · 완주 <b>24:25</b></p>
+  <p style="font-size:13px">게이지 <b>초록 구간</b>에 맞추면 목표 페이스 · 너무 빠르면 체력 소진 <b>기권</b></p>
+  <button class="btn" id="startBtn">스타트 🏁</button>
+</div>
+
+<div class="overlay" id="finScreen" style="display:none">
+  <h1 id="finTitle">🎉 완주!</h1>
+  <div class="finTime" id="finTime">00:00</div>
+  <div class="delta" id="finDelta"></div>
+  <p id="finStats"></p>
+  <button class="btn" id="againBtn">다시 달리기</button>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  // ---- tunables (현실 러닝 모델) ----
+  const WINDOW=12, MIN_INT=150, SUSTAIN=188, K_EFF=3.0, IDLE_MS=900;
+  const SCROLL_K=170;   // px per meter-ish (강한 스크롤 체감)
+  // 실제 러닝: 케이던스가 오르면 보폭도 함께 늘어난다 → 속도 = 케이던스 × 보폭
+  const strideFor = c => Math.max(0.72, Math.min(1.55, 0.96 + 0.014*(c-160)));
+  let TARGET_CAD=175;                 // 매 판 랜덤 배정
+  const CAD_TOL=7, GAUGE_MIN=140, GAUGE_MAX=210, TCAD_MIN=165, TCAD_MAX=185;
+  // 종목: 거리(m) + 압축배율(세션 길이 관리). 5K≈3.5분 … 풀≈15분
+  const DISTS={ '5K':{m:5000,scale:14}, '10K':{m:10000,scale:18}, '하프':{m:21097,scale:24}, '풀':{m:42195,scale:28} };
+  let curDist='5K', TARGET_M=5000, SCALE=14, TGT_SPEED=0, TGT_PACE=0, TGT_TIME=0;
+  function computeTargets(){ TGT_SPEED=(TARGET_CAD/60)*strideFor(TARGET_CAD); TGT_PACE=(1000/TGT_SPEED)/60; TGT_TIME=TARGET_M/TGT_SPEED; }
+  computeTargets();
+
+  let running=false, taps=[], lastSide=null, lastTapT=0;
+  let dist=0, raceT=0, gly=100, eff=1, cad=0, cv=0, speed=0, lastFrame=0, formBreaks=0;
+  let legPhase=0, legTarget=0, bob=0, scroll=0, gait=0;
+  let coachTxt="", coachColor="var(--txt)", coachUntil=0;
+  let critT=0;                 // 체력 0 진입 시각(기권 카운트다운)
+  const RETIRE_MS=3000;        // 체력 0 지속 시 기권까지
+
+  const $=id=>document.getElementById(id);
+  const cvs=$("scene"), ctx=cvs.getContext("2d");
+  const padL=$("padL"), padR=$("padR");
+  let W=0,H=0,DPR=1;
+  function resize(){ DPR=Math.min(2,window.devicePixelRatio||1); W=cvs.clientWidth; H=cvs.clientHeight;
+    cvs.width=W*DPR; cvs.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0); }
+  window.addEventListener("resize",resize);
+
+  const now=()=>performance.now();
+  const fmtT=s=>{s=Math.max(0,Math.floor(s));return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0");};
+  const fmtPace=m=>{ if(!isFinite(m)||m<=0||m>99)return"--"; const mi=Math.floor(m); return mi+":"+String(Math.round((m-mi)*60)).padStart(2,"0"); };
+  function setCoach(t,c){coachTxt=t;coachColor=c||"var(--txt)";coachUntil=now()+1200;}
+  function setNext(s){padL.classList.toggle("next",s==="L");padR.classList.toggle("next",s==="R");}
+  function flash(el,cls){el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),90);}
+
+  function tap(side){
+    if(!running)return; const t=now(); lastTapT=t;
+    if(side===lastSide){formBreaks++;flash(side==="L"?padL:padR,"bad");taps=[];setCoach("같은 발! 번갈아요",'var(--bad)');return;}
+    const prev=taps.length?taps[taps.length-1].t:t; const dt=t-prev;
+    if(taps.length&&dt<MIN_INT)return;
+    lastSide=side; taps.push({t}); if(taps.length>WINDOW)taps.shift();
+    legTarget=side==="L"?1:-1; bob=1; flash(side==="L"?padL:padR,"hit"); setNext(side==="L"?"R":"L");
+  }
+  function bind(el,side){el.addEventListener("pointerdown",e=>{e.preventDefault();tap(side);},{passive:false});}
+  bind(padL,"L");bind(padR,"R");
+  document.addEventListener("gesturestart",e=>e.preventDefault());
+  document.addEventListener("dblclick",e=>e.preventDefault());
+
+  function intervals(){const iv=[];for(let i=1;i<taps.length;i++)iv.push(taps[i].t-taps[i-1].t);return iv;}
+  function stats(iv){if(iv.length<2)return{mean:0,cv:1};const m=iv.reduce((a,b)=>a+b,0)/iv.length;const v=iv.reduce((a,b)=>a+(b-m)*(b-m),0)/iv.length;return{mean:m,cv:Math.sqrt(v)/m};}
+
+  function update(dtMs){
+    const dtS=dtMs/1000; const idle=now()-lastTapT>IDLE_MS; const s=stats(intervals());
+    let targetCad=(!idle&&s.mean>0)?60000/s.mean:0;
+    cad+=(targetCad-cad)*Math.min(1,dtS*7); if(idle)cad*=Math.pow(0.05,dtS);
+    cv=taps.length>=4?s.cv:(cad>0?0.4:1);
+    eff=Math.max(0.4,Math.min(1,1.05-K_EFF*cv));
+    const over=Math.max(0,cad-SUSTAIN)/60;
+    const drain=over*8+(cad>0?0.9:0)+(1-eff)*3.5;
+    const regen=(cad>0&&cad<=SUSTAIN)?(eff>0.8?1.4:0.8):0; // 페이스 낮추면 회복(벽에서 살아남기)
+    gly=Math.max(0,Math.min(100,gly-drain*dtS+regen*dtS));
+    let g=eff; if(gly<20)g*=0.5+0.5*(gly/20);
+    speed=(cad/60)*strideFor(cad)*g;
+    dist+=speed*dtS*SCALE; if(cad>1)raceT+=dtS*SCALE;
+    scroll+=speed*dtS*SCROLL_K;
+    gait += (cad/60)*Math.PI*dtS;   // 케이던스에 비례해 다리 회전(스텝당 π)
+    bob*=Math.pow(0.004,dtS);
+    // 체력 소진 → 기권(DNF) 카운트다운
+    if(gly<=0){
+      if(!critT) critT=now();
+      const left=Math.ceil((RETIRE_MS-(now()-critT))/1000);
+      setCoach("💀 체력 소진! 속도 줄여요! 기권까지 "+Math.max(0,left)+"s",'var(--bad)');
+      if(now()-critT>=RETIRE_MS){ dnf(); return; }
+    } else {
+      critT=0;
+      if(now()>coachUntil&&cad>1){
+        const d=cad-TARGET_CAD;
+        if(gly<25)setCoach("⚠️ 체력 위험! 페이스 낮춰요",'var(--bad)');
+        else if(eff<0.6)setCoach("리듬이 흔들려요 — 일정하게",'var(--warn)');
+        else if(d>CAD_TOL)setCoach("목표보다 빨라요 — 체력 아껴요",'var(--warn)');
+        else if(d<-CAD_TOL)setCoach("목표보다 느려요 — 조금 올려요",'var(--warn)');
+        else setCoach("🎯 목표 페이스 유지 중 👍",'var(--ok)');
+      }
+    }
+    if(dist>=TARGET_M){dist=TARGET_M;finish();}
+  }
+
+  // parallax helper
+  function repX(worldX,period){ let x=worldX%period; if(x<0)x+=period; return x; }
+
+  function tree(x,gy,sc){ ctx.fillStyle="#1c3a24"; ctx.beginPath(); ctx.moveTo(x,gy); ctx.lineTo(x-14*sc,gy); ctx.lineTo(x,gy-46*sc); ctx.lineTo(x+14*sc,gy); ctx.fill();
+    ctx.fillStyle="#0f2417"; ctx.beginPath(); ctx.moveTo(x,gy-12*sc); ctx.lineTo(x-11*sc,gy-12*sc); ctx.lineTo(x,gy-40*sc); ctx.lineTo(x+11*sc,gy-12*sc); ctx.fill(); }
+
+  // 2관절 팔다리 (root→관절→끝): 각도 수직(아래)=0, 앞(+x)=양수
+  function limb(root,a1,l1,a2,l2,w){
+    const k={x:root.x+Math.sin(a1)*l1, y:root.y+Math.cos(a1)*l1};
+    const e={x:k.x+Math.sin(a2)*l2, y:k.y+Math.cos(a2)*l2};
+    ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(root.x,root.y); ctx.lineTo(k.x,k.y); ctx.lineTo(e.x,e.y); ctx.stroke();
+    return {e,ang:a2};
+  }
+  function drawRunner(x,gy,s,p,bobv,fast){
+    const bounce=Math.abs(Math.sin(p))*8 + bobv*3;
+    ctx.save(); ctx.fillStyle="#0007"; ctx.beginPath(); ctx.ellipse(x,gy+2,30*s,7*s,0,0,7); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.translate(x,gy-bounce*s); ctx.scale(s,s);
+    const C="#eef2f6"; ctx.strokeStyle=C; ctx.fillStyle=C; ctx.lineCap="round"; ctx.lineJoin="round";
+    // 픽토그램: 앞으로 크게 기운 상체 + 굵은 팔다리
+    const lean=0.42, hip={x:0,y:-50};
+    const sh={x:hip.x+Math.sin(lean)*42, y:hip.y-Math.cos(lean)*42};
+    const hd={x:sh.x+Math.sin(lean)*26, y:sh.y-Math.cos(lean)*26};
+    // 다리: 스텝당 큰 무릎 굽힘(픽토그램 특유의 역동적 스탠스)
+    const leg=q=>({a1:Math.sin(q)*1.15, a2:Math.sin(q)*1.15-(0.45+Math.max(0,Math.sin(q+1.05))*1.75)});
+    const arm=q=>({a1:Math.sin(q)*0.8, a2:Math.sin(q)*0.8+1.7});
+    const foot=f=>{ctx.strokeStyle=C;ctx.lineWidth=22;ctx.beginPath();ctx.moveTo(f.e.x,f.e.y);ctx.lineTo(f.e.x+Math.cos(f.ang)*18+3,f.e.y+Math.sin(f.ang)*5);ctx.stroke();};
+    // 뒤쪽 팔·다리 (약간 어둡게 → 겹쳐도 구분)
+    ctx.strokeStyle="#c7cfd8"; ctx.fillStyle="#c7cfd8";
+    let bl=leg(p+Math.PI), ba=arm(p);
+    ctx.strokeStyle="#c7cfd8"; foot(limb(hip,bl.a1,30,bl.a2,30,26)); limb(sh,ba.a1,23,ba.a2,21,20);
+    // 몸통 + 목 + 머리 (굵게)
+    ctx.strokeStyle=C; ctx.fillStyle=C;
+    ctx.lineWidth=34; ctx.beginPath(); ctx.moveTo(hip.x,hip.y); ctx.lineTo(sh.x,sh.y); ctx.stroke();
+    ctx.lineWidth=17; ctx.beginPath(); ctx.moveTo(sh.x,sh.y); ctx.lineTo(hd.x,hd.y); ctx.stroke();
+    ctx.beginPath(); ctx.arc(hd.x,hd.y,19,0,7); ctx.fill();
+    ctx.save(); ctx.translate(hd.x,hd.y); ctx.rotate(lean); ctx.fillStyle="#f85149"; ctx.fillRect(-19,-18,38,7); ctx.restore();
+    // 앞쪽 다리·팔 (밝게, 위로)
+    ctx.strokeStyle=C; ctx.fillStyle=C;
+    let fl=leg(p), fa=arm(p+Math.PI);
+    foot(limb(hip,fl.a1,30,fl.a2,30,26)); limb(sh,fa.a1,23,fa.a2,21,20);
+    if(fast){ ctx.strokeStyle="#ffffff66"; ctx.lineWidth=4; for(let i=0;i<4;i++){const yy=-60+i*18; ctx.beginPath(); ctx.moveTo(-30,yy); ctx.lineTo(-30-28-i*9,yy); ctx.stroke();} }
+    ctx.restore();
+  }
+
+  function render(){
+    const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,"#0b1a2a"); g.addColorStop(.6,"#12293b"); g.addColorStop(1,"#0d1117");
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    const groundY=H*0.52;
+    // far clouds (slow)
+    ctx.fillStyle="#ffffff10";
+    for(let i=0;i<4;i++){ const x=repX(i*260 - scroll*0.05, W+260)-130; ctx.beginPath(); ctx.arc(x,H*0.18+i*8,34,0,7); ctx.arc(x+34,H*0.18+i*8,26,0,7); ctx.fill(); }
+    // hills (mid)
+    ctx.fillStyle="#14241a";
+    for(let i=0;i<6;i++){ const x=repX(i*200 - scroll*0.25, W+200)-100; ctx.beginPath(); ctx.arc(x,groundY,110,Math.PI,0); ctx.fill(); }
+    // trees (near, faster)
+    for(let i=0;i<8;i++){ const x=repX(i*150 - scroll*0.6, W+150)-40; tree(x,groundY,1); }
+    // road
+    ctx.fillStyle="#20262d"; ctx.fillRect(0,groundY,W,H-groundY);
+    ctx.strokeStyle="#3b434c"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(0,groundY); ctx.lineTo(W,groundY); ctx.stroke();
+    // center dashes (fast) — two rows for parallax speed
+    ctx.strokeStyle="#6b747d"; ctx.lineWidth=6; ctx.setLineDash([30,26]);
+    ctx.beginPath(); ctx.lineDashOffset=-(scroll%56); ctx.moveTo(0,groundY+30); ctx.lineTo(W,groundY+30); ctx.stroke();
+    ctx.strokeStyle="#7d868f"; ctx.lineWidth=9; ctx.setLineDash([40,30]);
+    ctx.beginPath(); ctx.lineDashOffset=-((scroll*1.6)%70); ctx.moveTo(0,groundY+68); ctx.lineTo(W,groundY+68); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset=0;
+    // km markers (aligned to real distance)
+    const kmPx = SCROLL_K*1000; // scroll units per km
+    const kmN=Math.round(TARGET_M/1000);
+    for(let km=1;km<=kmN;km++){ const mx = km*kmPx - scroll + W*0.28; // marker meets runner at that km
+      if(mx>-30&&mx<W+30){ ctx.fillStyle="#d29922"; ctx.fillRect(mx,groundY-52,4,52);
+        ctx.fillStyle="#0d1117"; ctx.fillRect(mx-15,groundY-66,36,18); ctx.strokeStyle="#d29922"; ctx.lineWidth=2; ctx.strokeRect(mx-15,groundY-66,36,18);
+        ctx.fillStyle="#d29922"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText(km+"K",mx+3,groundY-53); } }
+    // runner (feet on road, clearly above pads)
+    const rs=Math.max(1.1, Math.min(1.9, H/520));
+    drawRunner(W*0.28, groundY, rs, gait, bob, cad>150&&eff>0.6);
+
+    // HUD
+    $("clock").textContent=fmtT(raceT);
+    const paceInst=speed>0.05?(1000/speed)/60:Infinity;
+    $("pace").innerHTML=fmtPace(paceInst)+'<small>/km</small>';
+    $("cad").innerHTML=Math.round(cad)+'<small>spm</small>';
+    const fp=Math.round(eff*100); $("formPct").textContent=fp+"%";
+    const ff=$("formFill"); ff.style.width=fp+"%"; ff.style.background=eff>0.8?"var(--ok)":eff>0.6?"var(--warn)":"var(--bad)";
+    $("glyPct").textContent=Math.round(gly)+"%";
+    const gf=$("glyFill"); gf.style.width=gly+"%"; gf.style.background=gly>50?"var(--accent)":gly>20?"var(--warn)":"var(--bad)";
+    // 목표 케이던스 게이지 마커
+    const mk=$("cadMark"); const gp=Math.max(0,Math.min(100,(cad-GAUGE_MIN)/(GAUGE_MAX-GAUGE_MIN)*100));
+    mk.style.left=gp+"%"; const inZone=Math.abs(cad-TARGET_CAD)<=CAD_TOL&&cad>1;
+    mk.style.background=inZone?"var(--ok)":(cad>TARGET_CAD?"var(--warn)":"#fff");
+    // distance ribbon + bar (top area, clear of runner)
+    ctx.fillStyle="#e6edf3"; ctx.font="bold 15px sans-serif"; ctx.textAlign="center"; ctx.fillText((dist/1000).toFixed(2)+" / "+(TARGET_M/1000).toFixed(2)+" km",W/2,H*0.30);
+    const bw=W*0.7,bx=(W-bw)/2,by=H*0.33; ctx.fillStyle="#21262d"; ctx.fillRect(bx,by,bw,7); ctx.fillStyle="#3fb950"; ctx.fillRect(bx,by,bw*(dist/TARGET_M),7);
+    const c=$("coach"); c.textContent=coachTxt||"L·R 번갈아 두드려요"; c.style.color=coachColor;
+    cvs.style.transform=(running&&gly<15&&cad>1)?("translate("+((Math.random()*4-2)|0)+"px,"+((Math.random()*4-2)|0)+"px)"):"";
+  }
+
+  function loop(t){ if(!running)return; const dt=Math.min(100,t-lastFrame); lastFrame=t; update(dt); render(); requestAnimationFrame(loop); }
+  function idleLoop(t){ if(running){lastFrame=now();requestAnimationFrame(loop);return;}
+    scroll=t*0.35; gait=t/1000*(172/60)*Math.PI; cad=172; speed=4; eff=1; gly=100; bob=0; render(); requestAnimationFrame(idleLoop); }
+
+  function start(){
+    running=true; taps=[]; lastSide=null; lastTapT=now();
+    dist=0;raceT=0;gly=100;eff=1;cad=0;cv=0;speed=0;formBreaks=0;legPhase=0;legTarget=0;bob=0;scroll=0;critT=0;gait=0;
+    setNext("L"); setCoach("출발! 왼발(L)부터",'var(--ok)');
+    $("startScreen").style.display="none"; $("finScreen").style.display="none";
+    lastFrame=now(); requestAnimationFrame(loop);
+  }
+  function finish(){
+    running=false; const t=raceT, key="marathon_pb_"+curDist; const pb=parseFloat(localStorage.getItem(key)||"0");
+    let dtx="",title="🎉 "+curDist+" 완주!";
+    if(!pb||t<pb){localStorage.setItem(key,String(t));title="🏅 신기록!";dtx=pb?"이전보다 "+fmtT(pb-t)+" 단축":"첫 완주 기록 저장";$("finDelta").style.color="var(--ok)";}
+    else{dtx="개인최고 "+fmtT(pb)+" · +"+fmtT(t-pb);$("finDelta").style.color="var(--dim)";}
+    $("finTitle").textContent=title;$("finTime").textContent=fmtT(t);$("finDelta").textContent=dtx;
+    let stats="폼 붕괴 "+formBreaks+"회 · 남은 체력 "+Math.round(gly)+"%";
+    // 다음 종목 해금
+    const i=ORDER.indexOf(curDist);
+    if(i>=0 && i+1<ORDER.length){ if(i>=unlock()){ localStorage.setItem('marathon_unlock',String(i+1)); stats+="<br>🔓 <b>"+ORDER[i+1]+"</b> 해금!"; } refreshDistButtons(); }
+    $("finStats").innerHTML=stats;
+    $("finScreen").style.display="flex"; requestAnimationFrame(idleLoop);
+  }
+  function dnf(){
+    running=false;
+    $("finTitle").textContent="💀 기권 (DNF)";
+    $("finTime").textContent=(dist/1000).toFixed(2)+"km";
+    $("finDelta").style.color="var(--bad)";
+    $("finDelta").textContent="체력 소진으로 중도 포기";
+    $("finStats").innerHTML="너무 빠른 페이스가 원인이에요.<br>지속가능 케이던스(~185spm)로 페이스를 지키면 완주할 수 있어요.";
+    $("finScreen").style.display="flex"; requestAnimationFrame(idleLoop);
+  }
+  $("startBtn").addEventListener("click",start);
+  $("againBtn").addEventListener("click",()=>{ $("finScreen").style.display="none"; assignRandomTarget(); $("startScreen").style.display="flex"; requestAnimationFrame(idleLoop); });
+
+  // 케이던스 게이지 초록존(현재 목표 기준)
+  function setGaugeZone(){const z=$("cadZone");
+    const pL=(TARGET_CAD-CAD_TOL-GAUGE_MIN)/(GAUGE_MAX-GAUGE_MIN)*100;
+    const pR=(TARGET_CAD+CAD_TOL-GAUGE_MIN)/(GAUGE_MAX-GAUGE_MIN)*100;
+    z.style.left=pL+"%"; z.style.width=(pR-pL)+"%";}
+  // 목표 UI 갱신
+  function updateTargetUI(){
+    computeTargets();
+    $("tCad").textContent=TARGET_CAD;
+    $("tPace").textContent=fmtPace(TGT_PACE);
+    $("tTime").textContent=fmtT(TGT_TIME);
+    $("goalP").innerHTML="🎯 이번 목표: <b>"+TARGET_CAD+"spm</b> · "+fmtPace(TGT_PACE)+"/km · 완주 <b>"+fmtT(TGT_TIME)+"</b> ("+curDist+")";
+    setGaugeZone();
+  }
+  // 매 판 목표 페이스(케이던스) 랜덤 배정
+  function assignRandomTarget(){ TARGET_CAD=TCAD_MIN+Math.floor(Math.random()*(TCAD_MAX-TCAD_MIN+1)); updateTargetUI(); }
+  // 거리 해금(5K부터 차례로). unlock = 열린 최고 인덱스
+  const ORDER=['5K','10K','하프','풀'];
+  const unlock=()=>Math.max(0,Math.min(ORDER.length-1, parseInt(localStorage.getItem('marathon_unlock')||'0')));
+  function selectDist(d){
+    curDist=d; TARGET_M=DISTS[d].m; SCALE=DISTS[d].scale;
+    document.querySelectorAll(".dbtn").forEach(x=>x.classList.toggle("sel",x.dataset.d===d));
+    assignRandomTarget();
+  }
+  function refreshDistButtons(){
+    const u=unlock();
+    document.querySelectorAll(".dbtn").forEach(b=>{
+      const i=ORDER.indexOf(b.dataset.d), locked=i>u;
+      b.classList.toggle("locked",locked); b.disabled=locked;
+      b.textContent = locked ? b.dataset.d+" 🔒" : b.dataset.d;
+    });
+    // 잠긴 종목이 선택돼 있으면 5K로
+    if(ORDER.indexOf(curDist)>u) selectDist('5K');
+  }
+  document.querySelectorAll(".dbtn").forEach(b=>b.addEventListener("click",()=>{
+    if(ORDER.indexOf(b.dataset.d)>unlock()) return; // 잠김
+    selectDist(b.dataset.d);
+  }));
+  selectDist('5K'); refreshDistButtons();
+
+  resize(); requestAnimationFrame(idleLoop);
+})();
+</script>
+</body>
+</html>
