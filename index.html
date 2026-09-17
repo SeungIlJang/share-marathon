@@ -43,8 +43,8 @@
   .pad small{font-size:13px;font-weight:700;color:#aeb9c6;}
   .pad.hit{transform:scale(.95);background:#dcecff;border-color:var(--accent);color:var(--accent);}
   .pad.bad{background:#ffe0e4;border-color:var(--bad);color:var(--bad);}
-  .pad.next{border-color:var(--ok);color:var(--ok);animation:pulse 1s infinite;}
-  @keyframes pulse{0%,100%{box-shadow:0 0 0 2px #3fca6b30,0 6px 18px #7fb0e022}50%{box-shadow:0 0 0 4px #3fca6b66,0 0 22px #3fca6b55}}
+  .pad.next{border-color:var(--ok);color:var(--ok);}
+  .pad.beat{transform:scale(1.05);border-color:var(--ok);color:var(--ok);background:#e4fbe9;box-shadow:0 0 0 6px #3fca6b55,0 0 30px #3fca6b99;}
 
   .overlay{position:absolute;inset:0;background:linear-gradient(160deg,#bfe6ffe8,#eaf9eee8);backdrop-filter:blur(4px);
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;z-index:10;}
@@ -72,7 +72,7 @@
   </div>
   <div id="coach">L·R 번갈아 두드려요</div>
   <div id="target">
-    <div class="tl">🎯 목표 <b id="tCad">175</b> spm · <b id="tPace">--</b>/km · 완주 <b id="tTime">--</b></div>
+    <div class="tl">🎯 목표 <b id="tCad">175</b> spm · <b id="tPace">--</b>/km · 완주 <b id="tTime">--</b> <b id="sndBtn" style="cursor:pointer">🔊</b></div>
     <div id="cadGauge"><div id="cadZone"></div><div id="cadMark" style="left:0"></div></div>
   </div>
   <div id="meters">
@@ -98,7 +98,7 @@
     <button class="dbtn" data-d="풀">풀</button>
   </div>
   <p id="goalP">🎯 목표: <b>175spm</b> · 4:53/km · 완주 <b>24:25</b></p>
-  <p style="font-size:13px">게이지 <b>초록 구간</b>에 맞추면 목표 페이스 · 너무 빠르면 체력 소진 <b>기권</b></p>
+  <p style="font-size:13px">🥁 <b>박자(틱)</b>에 맞춰 L·R을 밟으면 목표 케이던스! · 너무 빠르면 체력 소진 <b>기권</b></p>
   <button class="btn" id="startBtn">스타트 🏁</button>
 </div>
 
@@ -132,6 +132,7 @@
   let coachTxt="", coachColor="var(--txt)", coachUntil=0;
   let critT=0;                 // 체력 0 진입 시각(기권 카운트다운)
   const RETIRE_MS=3000;        // 체력 0 지속 시 기권까지
+  let beatAt=0, sndOn=true, actx=null;   // 메트로놈(목표 케이던스 박자)
 
   const $=id=>document.getElementById(id);
   const cvs=$("scene"), ctx=cvs.getContext("2d");
@@ -147,6 +148,13 @@
   function setCoach(t,c){coachTxt=t;coachColor=c||"var(--txt)";coachUntil=now()+1200;}
   function setNext(s){padL.classList.toggle("next",s==="L");padR.classList.toggle("next",s==="R");}
   function flash(el,cls){el.classList.add(cls);setTimeout(()=>el.classList.remove(cls),90);}
+  // 메트로놈 틱 사운드(WebAudio) — 모델 인증과 무관, 짧은 클릭음
+  function tick(){ if(!sndOn||!actx)return; try{const o=actx.createOscillator(),g=actx.createGain();
+    o.frequency.value=1000; o.connect(g); g.connect(actx.destination);
+    const t=actx.currentTime; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.22,t+0.004); g.gain.exponentialRampToValueAtTime(0.0001,t+0.07);
+    o.start(t); o.stop(t+0.08);}catch(e){} }
+  function beatPulse(){ const el=padL.classList.contains("next")?padL:padR;
+    el.classList.add("beat"); const bm=60000/TARGET_CAD; setTimeout(()=>el.classList.remove("beat"),Math.min(150,bm*0.42)); tick(); }
 
   function tap(side){
     if(!running)return; const t=now(); lastTapT=t;
@@ -166,6 +174,10 @@
 
   function update(dtMs){
     const dtS=dtMs/1000; const idle=now()-lastTapT>IDLE_MS; const s=stats(intervals());
+    // 메트로놈: 목표 케이던스 속도로 "지금 밟을 발"을 펄스 + 틱
+    const beatMs=60000/TARGET_CAD;
+    if(!beatAt)beatAt=now()+beatMs;
+    if(now()>=beatAt){ beatPulse(); beatAt+=beatMs; if(now()-beatAt>beatMs)beatAt=now()+beatMs; }
     let targetCad=(!idle&&s.mean>0)?60000/s.mean:0;
     cad+=(targetCad-cad)*Math.min(1,dtS*7); if(idle)cad*=Math.pow(0.05,dtS);
     cv=taps.length>=4?s.cv:(cad>0?0.4:1);
@@ -317,7 +329,9 @@
   function start(){
     running=true; taps=[]; lastSide=null; lastTapT=now();
     dist=0;raceT=0;gly=100;eff=1;cad=0;cv=0;speed=0;formBreaks=0;legPhase=0;legTarget=0;bob=0;scroll=0;critT=0;gait=0;
-    setNext("L"); setCoach("출발! 왼발(L)부터",'var(--ok)');
+    setNext("L"); setCoach("박자에 맞춰 왼발(L)부터",'var(--ok)');
+    beatAt=now()+60000/TARGET_CAD;   // 메트로놈 시작
+    try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==="suspended")actx.resume(); }catch(e){}
     $("startScreen").style.display="none"; $("finScreen").style.display="none";
     lastFrame=now(); requestAnimationFrame(loop);
   }
@@ -343,6 +357,8 @@
     $("finStats").innerHTML="너무 빠른 페이스가 원인이에요.<br>지속가능 케이던스(~185spm)로 페이스를 지키면 완주할 수 있어요.";
     $("finScreen").style.display="flex"; requestAnimationFrame(idleLoop);
   }
+  $("sndBtn").addEventListener("click",e=>{ e.stopPropagation(); sndOn=!sndOn; $("sndBtn").textContent=sndOn?"🔊":"🔇";
+    try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==="suspended")actx.resume(); }catch(e){} });
   $("startBtn").addEventListener("click",start);
   $("againBtn").addEventListener("click",()=>{ $("finScreen").style.display="none"; assignRandomTarget(); $("startScreen").style.display="flex"; requestAnimationFrame(idleLoop); });
 
