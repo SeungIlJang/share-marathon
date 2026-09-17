@@ -133,6 +133,8 @@
   let critT=0;                 // 체력 0 진입 시각(기권 카운트다운)
   const RETIRE_MS=3000;        // 체력 0 지속 시 기권까지
   let beatAt=0, sndOn=true, actx=null;   // 메트로놈(목표 케이던스 박자)
+  let course=[], curSeg=null, curTarget=175, splitKm=0;   // 구간 지형/급수대/스플릿
+  const CHEERS=["좋아요 💪","가볍다 가벼워 ✨","리듬 최고 🎵","페이스 굿 👍","잘하고 있어요 🔥","그대로 유지 🙌"];
 
   const $=id=>document.getElementById(id);
   const cvs=$("scene"), ctx=cvs.getContext("2d");
@@ -172,16 +174,56 @@
   function intervals(){const iv=[];for(let i=1;i<taps.length;i++)iv.push(taps[i].t-taps[i-1].t);return iv;}
   function stats(iv){if(iv.length<2)return{mean:0,cv:1};const m=iv.reduce((a,b)=>a+b,0)/iv.length;const v=iv.reduce((a,b)=>a+(b-m)*(b-m),0)/iv.length;return{mean:m,cv:Math.sqrt(v)/m};}
 
+  // 코스: 지형(오르막/내리막→목표 케이던스 변동)·급수대 구간
+  function buildCourse(){
+    course=[
+      {to:0.15,type:'flat',d:0},
+      {to:0.30,type:'up',d:12},
+      {to:0.38,type:'water',d:0},
+      {to:0.55,type:'flat',d:0},
+      {to:0.70,type:'down',d:-12},
+      {to:0.85,type:'up',d:14},
+      {to:0.92,type:'water',d:0},
+      {to:1.01,type:'flat',d:0},
+    ];
+    curSeg=null; curTarget=TARGET_CAD; splitKm=0;
+  }
+  function onSeg(seg){
+    if(seg.type==='up') setCoach("⛰️ 오르막! 케이던스 올려요 (+"+seg.d+")",'var(--warn)');
+    else if(seg.type==='down') setCoach("⬇️ 내리막 — 케이던스 낮춰 편하게",'var(--accent)');
+    else if(seg.type==='water') setCoach("💧 급수대! 잠깐 쉬며 체력 회복",'var(--accent)');
+  }
+  const cheer=()=>CHEERS[(splitKm-1)%CHEERS.length];
+
   function update(dtMs){
     const dtS=dtMs/1000; const idle=now()-lastTapT>IDLE_MS; const s=stats(intervals());
-    // 메트로놈: 목표 케이던스 속도로 "지금 밟을 발"을 펄스 + 틱
-    const beatMs=60000/TARGET_CAD;
+    // 현재 구간 판정 → 목표 케이던스 변동 / 급수대
+    const frac=dist/TARGET_M; let seg=course[course.length-1];
+    for(const sg of course){ if(frac<sg.to){ seg=sg; break; } }
+    if(seg!==curSeg){ curSeg=seg; curTarget=Math.max(120,TARGET_CAD+(seg.d||0)); setGaugeZone(); onSeg(seg); }
+    const water=(seg.type==='water');
+    // 스플릿·응원: km 통과 시
+    const kmNow=Math.floor(dist/1000);
+    if(kmNow>splitKm){ splitKm=kmNow; if(kmNow>0) setCoach("✅ "+kmNow+"km 통과 · 스플릿 "+fmtT(raceT)+" — "+cheer(),'var(--ok)'); }
+    // 메트로놈(현재 목표 케이던스 박자, 급수대에선 쉼)
+    const beatMs=60000/curTarget;
     if(!beatAt)beatAt=now()+beatMs;
-    if(now()>=beatAt){ beatPulse(); beatAt+=beatMs; if(now()-beatAt>beatMs)beatAt=now()+beatMs; }
+    if(water){ beatAt=now()+beatMs; }
+    else if(now()>=beatAt){ beatPulse(); beatAt+=beatMs; if(now()-beatAt>beatMs)beatAt=now()+beatMs; }
     let targetCad=(!idle&&s.mean>0)?60000/s.mean:0;
     cad+=(targetCad-cad)*Math.min(1,dtS*7); if(idle)cad*=Math.pow(0.05,dtS);
     cv=taps.length>=4?s.cv:(cad>0?0.4:1);
     eff=Math.max(0.4,Math.min(1,1.05-K_EFF*cv));
+    if(water){
+      // 급수대: 자동 조깅 + 체력 빠르게 회복, 케이던스 부담 없음
+      gly=Math.min(100,gly+16*dtS);
+      speed=TGT_SPEED*0.5;
+      dist+=speed*dtS*SCALE; raceT+=dtS*SCALE; scroll+=speed*dtS*SCROLL_K;
+      gait+=(150/60)*Math.PI*dtS; bob*=Math.pow(0.004,dtS); critT=0;
+      if(now()>coachUntil) setCoach("💧 급수대 — 체력 회복 중 "+Math.round(gly)+"%",'var(--accent)');
+      if(dist>=TARGET_M){dist=TARGET_M;finish();}
+      return;
+    }
     const over=Math.max(0,cad-SUSTAIN)/60;
     const drain=over*8+(cad>0?0.9:0)+(1-eff)*3.5;
     const regen=(cad>0&&cad<=SUSTAIN)?(eff>0.8?1.4:0.8):0; // 페이스 낮추면 회복(벽에서 살아남기)
@@ -201,7 +243,7 @@
     } else {
       critT=0;
       if(now()>coachUntil&&cad>1){
-        const d=cad-TARGET_CAD;
+        const d=cad-curTarget;
         if(gly<25)setCoach("⚠️ 체력 위험! 페이스 낮춰요",'var(--bad)');
         else if(eff<0.6)setCoach("리듬이 흔들려요 — 일정하게",'var(--warn)');
         else if(d>CAD_TOL)setCoach("목표보다 빨라요 — 체력 아껴요",'var(--warn)');
@@ -294,6 +336,14 @@
         ctx.fillStyle="#ffffff"; if(ctx.roundRect){ctx.beginPath();ctx.roundRect(mx-16,groundY-68,38,20,7);ctx.fill();} else ctx.fillRect(mx-16,groundY-68,38,20);
         ctx.strokeStyle="#ff6f9c"; ctx.lineWidth=2.5; if(ctx.roundRect){ctx.beginPath();ctx.roundRect(mx-16,groundY-68,38,20,7);ctx.stroke();}
         ctx.fillStyle="#ff6f9c"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText(km+"K",mx+3,groundY-54); } }
+    // 지형/급수대 표시
+    if(running&&curSeg){
+      if(curSeg.type==='water'){
+        ctx.font="bold 30px sans-serif"; ctx.textAlign="center"; ctx.fillText("💧",W*0.62,groundY-24);
+        ctx.fillStyle="#2a4a6a"; ctx.font="bold 13px sans-serif"; ctx.fillText("급수대",W*0.62,groundY-6);
+      } else if(curSeg.type==='up'){ ctx.font="26px sans-serif"; ctx.textAlign="left"; ctx.fillText("⛰️ 오르막",12,groundY-16); }
+      else if(curSeg.type==='down'){ ctx.font="26px sans-serif"; ctx.textAlign="left"; ctx.fillText("⬇️ 내리막",12,groundY-16); }
+    }
     // runner (feet on road, clearly above pads)
     const rs=Math.max(1.1, Math.min(1.9, H/520));
     drawRunner(W*0.28, groundY, rs, gait, bob, cad>150&&eff>0.6);
@@ -309,8 +359,8 @@
     const gf=$("glyFill"); gf.style.width=gly+"%"; gf.style.background=gly>50?"var(--accent)":gly>20?"var(--warn)":"var(--bad)";
     // 목표 케이던스 게이지 마커
     const mk=$("cadMark"); const gp=Math.max(0,Math.min(100,(cad-GAUGE_MIN)/(GAUGE_MAX-GAUGE_MIN)*100));
-    mk.style.left=gp+"%"; const inZone=Math.abs(cad-TARGET_CAD)<=CAD_TOL&&cad>1;
-    mk.style.background=inZone?"var(--ok)":(cad>TARGET_CAD?"var(--warn)":"#fff");
+    mk.style.left=gp+"%"; const inZone=Math.abs(cad-curTarget)<=CAD_TOL&&cad>1;
+    mk.style.background=inZone?"var(--ok)":(cad>curTarget?"var(--warn)":"var(--accent)");
     // distance ribbon + bar (밝은 하늘에서도 읽히게 알약 배경)
     const dTxt=(dist/1000).toFixed(2)+" / "+(TARGET_M/1000).toFixed(2)+" km";
     ctx.font="bold 15px sans-serif"; ctx.textAlign="center";
@@ -329,6 +379,7 @@
   function start(){
     running=true; taps=[]; lastSide=null; lastTapT=now();
     dist=0;raceT=0;gly=100;eff=1;cad=0;cv=0;speed=0;formBreaks=0;legPhase=0;legTarget=0;bob=0;scroll=0;critT=0;gait=0;
+    buildCourse();                    // 지형·급수대·스플릿 코스 생성
     setNext("L"); setCoach("박자에 맞춰 왼발(L)부터",'var(--ok)');
     beatAt=now()+60000/TARGET_CAD;   // 메트로놈 시작
     try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==="suspended")actx.resume(); }catch(e){}
@@ -363,13 +414,13 @@
   $("againBtn").addEventListener("click",()=>{ $("finScreen").style.display="none"; assignRandomTarget(); $("startScreen").style.display="flex"; requestAnimationFrame(idleLoop); });
 
   // 케이던스 게이지 초록존(현재 목표 기준)
-  function setGaugeZone(){const z=$("cadZone");
-    const pL=(TARGET_CAD-CAD_TOL-GAUGE_MIN)/(GAUGE_MAX-GAUGE_MIN)*100;
-    const pR=(TARGET_CAD+CAD_TOL-GAUGE_MIN)/(GAUGE_MAX-GAUGE_MIN)*100;
+  function setGaugeZone(){const z=$("cadZone"); const T=curTarget||TARGET_CAD;
+    const pL=(T-CAD_TOL-GAUGE_MIN)/(GAUGE_MAX-GAUGE_MIN)*100;
+    const pR=(T+CAD_TOL-GAUGE_MIN)/(GAUGE_MAX-GAUGE_MIN)*100;
     z.style.left=pL+"%"; z.style.width=(pR-pL)+"%";}
   // 목표 UI 갱신
   function updateTargetUI(){
-    computeTargets();
+    computeTargets(); curTarget=TARGET_CAD;
     $("tCad").textContent=TARGET_CAD;
     $("tPace").textContent=fmtPace(TGT_PACE);
     $("tTime").textContent=fmtT(TGT_TIME);
