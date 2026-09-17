@@ -218,48 +218,32 @@
   function seg(a,b,col,w){ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
   function drawRunner(x,gy,s,p,bobv,fast){
     const bounce=Math.abs(Math.sin(p))*9 + bobv*3;
-    ctx.save(); ctx.fillStyle="#0000002e"; ctx.beginPath(); ctx.ellipse(x,gy+3,30*s,7*s,0,0,7); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.fillStyle="#00000026"; ctx.beginPath(); ctx.ellipse(x,gy+3,30*s,7*s,0,0,7); ctx.fill(); ctx.restore();
     ctx.save(); ctx.translate(x,gy-bounce*s); ctx.scale(s,s);
     ctx.lineCap="round"; ctx.lineJoin="round";
-    // 귀여운 캐릭터 팔레트
-    const SKIN="#ffcf9e", SKIN_B="#e6b184", JERSEY="#ff6f9c", JERSEY_B="#e0578a",
-          SHORTS="#4a7be6", SHORTS_B="#3a63c4", SHOE="#ffd23f", SHOE_B="#f0a800", BAND="#ff4d5e";
-    const lean=0.36, hip={x:0,y:-48};
+    const C="#1f242c";   // 꽉 찬 검은 실루엣 (러닝 픽토그램)
+    const lean=0.5, hip={x:0,y:-46};
     const sh={x:hip.x+Math.sin(lean)*40, y:hip.y-Math.cos(lean)*40};
-    const hd={x:sh.x+Math.sin(lean)*24, y:sh.y-Math.cos(lean)*24};
-    const legAng=q=>({a1:Math.sin(q)*1.05, a2:Math.sin(q)*1.05-(0.5+Math.max(0,Math.sin(q+1.05))*1.65)});
-    const armAng=q=>({a1:Math.sin(q)*0.78, a2:Math.sin(q)*0.78+1.72});
-    function drawLeg(q,back){
-      const a=legAng(q), knee=jnt(hip,a.a1,26), ank=jnt(knee,a.a2,26);
-      seg(hip,knee, back?SHORTS_B:SHORTS, 25);      // 허벅지(반바지)
-      seg(knee,ank, back?SKIN_B:SKIN, 19);          // 정강이(피부)
-      const shoe={x:ank.x+Math.cos(a.a2)*17+3, y:ank.y+Math.sin(a.a2)*5+2};
-      seg(ank,shoe, back?SHOE_B:SHOE, 14);          // 신발
+    const hd={x:sh.x+Math.sin(lean)*22, y:sh.y-Math.cos(lean)*22};
+    // 큰 무릎 리프트 + 뒷다리 차올림 = 스프라이트 특유의 역동적 스탠스
+    const legAng=q=>({a1:Math.sin(q)*1.25, a2:Math.sin(q)*1.25-(0.5+Math.max(0,Math.sin(q+1.0))*1.9)});
+    const armAng=q=>({a1:Math.sin(q)*0.9, a2:Math.sin(q)*0.9+1.78});
+    function drawLeg(q){
+      const a=legAng(q), knee=jnt(hip,a.a1,27), ank=jnt(knee,a.a2,27);
+      seg(hip,knee,C,26); seg(knee,ank,C,20);
+      const shoe={x:ank.x+Math.cos(a.a2)*18+3, y:ank.y+Math.sin(a.a2)*5+2};
+      seg(ank,shoe,C,18);
     }
-    function drawArm(q,back){
-      const a=armAng(q), elb=jnt(sh,a.a1,20), hand=jnt(elb,a.a2,17);
-      seg(sh,elb, back?JERSEY_B:JERSEY, 17);        // 위팔(소매)
-      seg(elb,hand, back?SKIN_B:SKIN, 14);          // 아래팔(피부)
+    function drawArm(q){
+      const a=armAng(q), elb=jnt(sh,a.a1,20), hand=jnt(elb,a.a2,18);
+      seg(sh,elb,C,20); seg(elb,hand,C,16);
     }
-    // 뒤쪽 팔·다리
-    drawLeg(p+Math.PI,true); drawArm(p,true);
-    // 몸통(져지) + 목
-    seg(hip,sh,JERSEY,32);
-    seg(sh,hd,SKIN,14);
-    // 머리
-    ctx.fillStyle=SKIN; ctx.beginPath(); ctx.arc(hd.x,hd.y,17,0,7); ctx.fill();
-    // 얼굴 + 머리띠 (진행방향 +x 바라봄, 머리 기울기 반영)
-    ctx.save(); ctx.translate(hd.x,hd.y); ctx.rotate(lean);
-      ctx.strokeStyle=BAND; ctx.lineWidth=7; ctx.lineCap="round";
-      ctx.beginPath(); ctx.arc(0,0,15,Math.PI*1.06,Math.PI*1.96); ctx.stroke();   // 머리띠
-      ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(-13,-6); ctx.lineTo(-24,-2); ctx.stroke(); // 띠 꼬리
-      ctx.fillStyle="#3a2b22"; ctx.beginPath(); ctx.arc(8,-1,2.6,0,7); ctx.fill();            // 눈
-      ctx.strokeStyle="#3a2b22"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(6,4,4,0.15,Math.PI-0.5); ctx.stroke(); // 미소
-      ctx.fillStyle="#ff9db0aa"; ctx.beginPath(); ctx.arc(2,6,3,0,7); ctx.fill();             // 볼터치
-    ctx.restore();
-    // 앞쪽 팔·다리
-    drawArm(p+Math.PI,false); drawLeg(p,false);
-    if(fast){ ctx.strokeStyle="#ffffffaa"; ctx.lineWidth=4; ctx.lineCap="round"; for(let i=0;i<4;i++){const yy=-56+i*16; ctx.beginPath(); ctx.moveTo(-30,yy); ctx.lineTo(-30-26-i*8,yy); ctx.stroke();} }
+    // 뒤쪽(먼) 팔·다리 → 몸통 → 앞쪽(가까운) 팔·다리 순서로 겹쳐 하나의 실루엣
+    drawLeg(p+Math.PI); drawArm(p);
+    seg(hip,sh,C,34); seg(sh,hd,C,16);
+    ctx.fillStyle=C; ctx.beginPath(); ctx.arc(hd.x,hd.y,17,0,7); ctx.fill();   // 머리(꽉 찬 원)
+    drawArm(p+Math.PI); drawLeg(p);
+    if(fast){ ctx.strokeStyle="#1f242c44"; ctx.lineWidth=4; ctx.lineCap="round"; for(let i=0;i<3;i++){const yy=-52+i*20; ctx.beginPath(); ctx.moveTo(-34,yy); ctx.lineTo(-34-24-i*10,yy); ctx.stroke();} }
     ctx.restore();
   }
 
