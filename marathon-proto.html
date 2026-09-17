@@ -121,7 +121,7 @@
   let TARGET_CAD=175;                 // 매 판 랜덤 배정
   const CAD_TOL=7, GAUGE_MIN=140, GAUGE_MAX=210, TCAD_MIN=165, TCAD_MAX=185;
   // 종목: 거리(m) + 압축배율(세션 길이 관리). 5K≈3.5분 … 풀≈15분
-  const DISTS={ '5K':{m:5000,scale:14}, '10K':{m:10000,scale:18}, '하프':{m:21097,scale:24}, '풀':{m:42195,scale:28} };
+  const DISTS={ '5K':{m:5000,scale:26}, '10K':{m:10000,scale:34}, '하프':{m:21097,scale:44}, '풀':{m:42195,scale:52} };
   let curDist='5K', TARGET_M=5000, SCALE=14, TGT_SPEED=0, TGT_PACE=0, TGT_TIME=0;
   function computeTargets(){ TGT_SPEED=(TARGET_CAD/60)*strideFor(TARGET_CAD); TGT_PACE=(1000/TGT_SPEED)/60; TGT_TIME=TARGET_M/TGT_SPEED; }
   computeTargets();
