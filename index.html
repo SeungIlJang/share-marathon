@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>마라톤 프로토 · 5K</title>
 <style>
-  :root{ --bg:#0d1117; --panel:#161b22cc; --line:#30363d;
-    --ok:#3fb950; --warn:#d29922; --bad:#f85149; --accent:#58a6ff; --txt:#e6edf3; --dim:#8b949e; }
+  :root{ --bg:#eaf6ff; --panel:#ffffffe8; --line:#dfe7f0;
+    --ok:#3fca6b; --warn:#ffab2e; --bad:#ff5d6c; --accent:#4aa3ff; --pink:#ff6f9c; --txt:#2b3a4a; --dim:#8496a8; }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;}
   html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;touch-action:none;}
@@ -14,50 +14,50 @@
   #scene{position:absolute;inset:0;width:100%;height:100%;display:block;}
 
   #hud{position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 8px) 10px 6px;display:flex;gap:8px;z-index:3;}
-  .card{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px 8px;text-align:center;backdrop-filter:blur(6px);}
+  .card{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:6px 8px;text-align:center;backdrop-filter:blur(6px);box-shadow:0 4px 14px #7fb0e024;}
   .card .lbl{font-size:10px;color:var(--dim);letter-spacing:.5px;}
   .card .val{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1;}
   .card .val small{font-size:11px;color:var(--dim);font-weight:600;}
 
   #coach{position:absolute;top:calc(env(safe-area-inset-top) + 62px);left:0;right:0;text-align:center;
-    font-size:16px;font-weight:900;z-index:3;pointer-events:none;text-shadow:0 1px 4px #000;transition:color .2s;}
+    font-size:16px;font-weight:900;z-index:3;pointer-events:none;text-shadow:0 1px 6px #fff,0 0 3px #fff;transition:color .2s;}
 
   #target{position:absolute;top:calc(env(safe-area-inset-top) + 90px);left:10px;right:10px;z-index:3;
-    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px 10px;backdrop-filter:blur(6px);}
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:5px 10px;backdrop-filter:blur(6px);box-shadow:0 4px 14px #7fb0e022;}
   #target .tl{font-size:12px;color:var(--txt);text-align:center;margin-bottom:5px;}
   #target .tl b{color:var(--ok);}
-  #cadGauge{position:relative;height:12px;background:#21262d;border-radius:6px;overflow:hidden;}
-  #cadZone{position:absolute;top:0;bottom:0;background:#3fb95033;border-left:2px solid #3fb950;border-right:2px solid #3fb950;}
-  #cadMark{position:absolute;top:-2px;width:4px;height:16px;background:#fff;border-radius:2px;margin-left:-2px;transition:left .1s linear,background .15s;}
-  #cadGauge .tick{position:absolute;top:0;bottom:0;width:1px;background:#ffffff14;}
+  #cadGauge{position:relative;height:12px;background:#e6eef6;border-radius:6px;overflow:hidden;}
+  #cadZone{position:absolute;top:0;bottom:0;background:#3fca6b3a;border-left:2px solid #3fca6b;border-right:2px solid #3fca6b;}
+  #cadMark{position:absolute;top:-2px;width:4px;height:16px;background:var(--accent);border-radius:2px;margin-left:-2px;transition:left .1s linear,background .15s;}
+  #cadGauge .tick{position:absolute;top:0;bottom:0;width:1px;background:#00000010;}
   #meters{position:absolute;left:10px;right:10px;bottom:calc(30% + 8px);display:flex;gap:8px;z-index:3;}
-  .meter{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:5px 8px;backdrop-filter:blur(6px);}
+  .meter{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:5px 8px;backdrop-filter:blur(6px);box-shadow:0 4px 14px #7fb0e01f;}
   .meter .lbl{font-size:9px;color:var(--dim);display:flex;justify-content:space-between;letter-spacing:.4px;}
-  .mtrack{height:8px;background:#21262d;border-radius:5px;overflow:hidden;margin-top:4px;}
+  .mtrack{height:8px;background:#e6eef6;border-radius:5px;overflow:hidden;margin-top:4px;}
   .mfill{height:100%;width:100%;transition:width .12s linear,background .2s;}
 
   #pads{position:absolute;left:0;right:0;bottom:0;height:30%;display:flex;gap:10px;padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);z-index:3;}
-  .pad{flex:1;border-radius:20px;border:3px solid var(--line);background:#161b22ee;
+  .pad{flex:1;border-radius:28px;border:3px solid var(--line);background:#ffffffee;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
-    font-size:42px;font-weight:900;color:#586069;transition:transform .05s,background .08s,border-color .08s,color .08s;}
-  .pad small{font-size:13px;font-weight:700;color:#586069;}
-  .pad.hit{transform:scale(.96);background:#1f6feb33;border-color:var(--accent);color:var(--accent);}
-  .pad.bad{background:#f8514933;border-color:var(--bad);color:var(--bad);}
+    font-size:42px;font-weight:900;color:#aeb9c6;box-shadow:0 6px 18px #7fb0e022;transition:transform .05s,background .08s,border-color .08s,color .08s;}
+  .pad small{font-size:13px;font-weight:700;color:#aeb9c6;}
+  .pad.hit{transform:scale(.95);background:#dcecff;border-color:var(--accent);color:var(--accent);}
+  .pad.bad{background:#ffe0e4;border-color:var(--bad);color:var(--bad);}
   .pad.next{border-color:var(--ok);color:var(--ok);animation:pulse 1s infinite;}
-  @keyframes pulse{0%,100%{box-shadow:0 0 0 2px #3fb95033,0 0 14px #3fb95044 inset}50%{box-shadow:0 0 0 3px #3fb95088,0 0 26px #3fb95099 inset}}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 2px #3fca6b30,0 6px 18px #7fb0e022}50%{box-shadow:0 0 0 4px #3fca6b66,0 0 22px #3fca6b55}}
 
-  .overlay{position:absolute;inset:0;background:#0d1117e8;backdrop-filter:blur(3px);
+  .overlay{position:absolute;inset:0;background:linear-gradient(160deg,#bfe6ffe8,#eaf9eee8);backdrop-filter:blur(4px);
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;z-index:10;}
-  .overlay h1{font-size:28px;margin:0;}
-  .overlay p{color:var(--dim);margin:0;max-width:340px;line-height:1.55;font-size:15px;}
+  .overlay h1{font-size:30px;margin:0;color:var(--txt);}
+  .overlay p{color:#5f7186;margin:0;max-width:340px;line-height:1.55;font-size:15px;}
   .demo{display:flex;gap:12px;align-items:center;font-size:14px;}
   .key{display:inline-flex;width:50px;height:50px;border-radius:12px;border:2px solid var(--ok);color:var(--ok);align-items:center;justify-content:center;font-size:22px;font-weight:900;}
   .key.b{border-color:var(--accent);color:var(--accent);}
   #distSel{display:flex;gap:8px;}
-  .dbtn{background:#161b22;border:2px solid var(--line);color:var(--dim);border-radius:12px;padding:12px 16px;font-size:17px;font-weight:800;}
-  .dbtn.sel{border-color:var(--accent);color:var(--accent);background:#1f6feb22;}
-  .dbtn.locked{opacity:.45;color:#586069;border-style:dashed;}
-  .btn{background:var(--accent);color:#04101f;border:none;border-radius:14px;padding:16px 30px;font-size:19px;font-weight:900;}
+  .dbtn{background:#fff;border:2px solid var(--line);color:var(--dim);border-radius:14px;padding:12px 16px;font-size:17px;font-weight:800;box-shadow:0 3px 10px #7fb0e01f;}
+  .dbtn.sel{border-color:var(--accent);color:var(--accent);background:#dcecff;}
+  .dbtn.locked{opacity:.5;color:#a7b3c0;border-style:dashed;box-shadow:none;}
+  .btn{background:linear-gradient(135deg,#ff8fb4,#ff6f9c);color:#fff;border:none;border-radius:18px;padding:16px 34px;font-size:19px;font-weight:900;box-shadow:0 8px 20px #ff6f9c55;}
   .finTime{font-size:52px;font-weight:900;font-variant-numeric:tabular-nums;}
   .delta{font-size:18px;font-weight:800;}
 </style>
@@ -82,8 +82,8 @@
       <div class="mtrack"><div class="mfill" id="glyFill" style="background:var(--accent)"></div></div></div>
   </div>
   <div id="pads">
-    <div class="pad next" id="padL">L<small>◀ 왼발</small></div>
-    <div class="pad" id="padR">R<small>오른발 ▶</small></div>
+    <div class="pad next" id="padL">L<small>👟 왼발</small></div>
+    <div class="pad" id="padR">R<small>오른발 👟</small></div>
   </div>
 </div>
 
@@ -213,64 +213,91 @@
     ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(root.x,root.y); ctx.lineTo(k.x,k.y); ctx.lineTo(e.x,e.y); ctx.stroke();
     return {e,ang:a2};
   }
+  // 관절 좌표 (root→각도·길이). 각도 수직(아래)=0, 앞(+x)=양수
+  function jnt(r,a,l){ return {x:r.x+Math.sin(a)*l, y:r.y+Math.cos(a)*l}; }
+  function seg(a,b,col,w){ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
   function drawRunner(x,gy,s,p,bobv,fast){
-    const bounce=Math.abs(Math.sin(p))*8 + bobv*3;
-    ctx.save(); ctx.fillStyle="#0007"; ctx.beginPath(); ctx.ellipse(x,gy+2,30*s,7*s,0,0,7); ctx.fill(); ctx.restore();
+    const bounce=Math.abs(Math.sin(p))*9 + bobv*3;
+    ctx.save(); ctx.fillStyle="#0000002e"; ctx.beginPath(); ctx.ellipse(x,gy+3,30*s,7*s,0,0,7); ctx.fill(); ctx.restore();
     ctx.save(); ctx.translate(x,gy-bounce*s); ctx.scale(s,s);
-    const C="#eef2f6"; ctx.strokeStyle=C; ctx.fillStyle=C; ctx.lineCap="round"; ctx.lineJoin="round";
-    // 픽토그램: 앞으로 크게 기운 상체 + 굵은 팔다리
-    const lean=0.42, hip={x:0,y:-50};
-    const sh={x:hip.x+Math.sin(lean)*42, y:hip.y-Math.cos(lean)*42};
-    const hd={x:sh.x+Math.sin(lean)*26, y:sh.y-Math.cos(lean)*26};
-    // 다리: 스텝당 큰 무릎 굽힘(픽토그램 특유의 역동적 스탠스)
-    const leg=q=>({a1:Math.sin(q)*1.15, a2:Math.sin(q)*1.15-(0.45+Math.max(0,Math.sin(q+1.05))*1.75)});
-    const arm=q=>({a1:Math.sin(q)*0.8, a2:Math.sin(q)*0.8+1.7});
-    const foot=f=>{ctx.strokeStyle=C;ctx.lineWidth=22;ctx.beginPath();ctx.moveTo(f.e.x,f.e.y);ctx.lineTo(f.e.x+Math.cos(f.ang)*18+3,f.e.y+Math.sin(f.ang)*5);ctx.stroke();};
-    // 뒤쪽 팔·다리 (약간 어둡게 → 겹쳐도 구분)
-    ctx.strokeStyle="#c7cfd8"; ctx.fillStyle="#c7cfd8";
-    let bl=leg(p+Math.PI), ba=arm(p);
-    ctx.strokeStyle="#c7cfd8"; foot(limb(hip,bl.a1,30,bl.a2,30,26)); limb(sh,ba.a1,23,ba.a2,21,20);
-    // 몸통 + 목 + 머리 (굵게)
-    ctx.strokeStyle=C; ctx.fillStyle=C;
-    ctx.lineWidth=34; ctx.beginPath(); ctx.moveTo(hip.x,hip.y); ctx.lineTo(sh.x,sh.y); ctx.stroke();
-    ctx.lineWidth=17; ctx.beginPath(); ctx.moveTo(sh.x,sh.y); ctx.lineTo(hd.x,hd.y); ctx.stroke();
-    ctx.beginPath(); ctx.arc(hd.x,hd.y,19,0,7); ctx.fill();
-    ctx.save(); ctx.translate(hd.x,hd.y); ctx.rotate(lean); ctx.fillStyle="#f85149"; ctx.fillRect(-19,-18,38,7); ctx.restore();
-    // 앞쪽 다리·팔 (밝게, 위로)
-    ctx.strokeStyle=C; ctx.fillStyle=C;
-    let fl=leg(p), fa=arm(p+Math.PI);
-    foot(limb(hip,fl.a1,30,fl.a2,30,26)); limb(sh,fa.a1,23,fa.a2,21,20);
-    if(fast){ ctx.strokeStyle="#ffffff66"; ctx.lineWidth=4; for(let i=0;i<4;i++){const yy=-60+i*18; ctx.beginPath(); ctx.moveTo(-30,yy); ctx.lineTo(-30-28-i*9,yy); ctx.stroke();} }
+    ctx.lineCap="round"; ctx.lineJoin="round";
+    // 귀여운 캐릭터 팔레트
+    const SKIN="#ffcf9e", SKIN_B="#e6b184", JERSEY="#ff6f9c", JERSEY_B="#e0578a",
+          SHORTS="#4a7be6", SHORTS_B="#3a63c4", SHOE="#ffd23f", SHOE_B="#f0a800", BAND="#ff4d5e";
+    const lean=0.36, hip={x:0,y:-48};
+    const sh={x:hip.x+Math.sin(lean)*40, y:hip.y-Math.cos(lean)*40};
+    const hd={x:sh.x+Math.sin(lean)*24, y:sh.y-Math.cos(lean)*24};
+    const legAng=q=>({a1:Math.sin(q)*1.05, a2:Math.sin(q)*1.05-(0.5+Math.max(0,Math.sin(q+1.05))*1.65)});
+    const armAng=q=>({a1:Math.sin(q)*0.78, a2:Math.sin(q)*0.78+1.72});
+    function drawLeg(q,back){
+      const a=legAng(q), knee=jnt(hip,a.a1,26), ank=jnt(knee,a.a2,26);
+      seg(hip,knee, back?SHORTS_B:SHORTS, 25);      // 허벅지(반바지)
+      seg(knee,ank, back?SKIN_B:SKIN, 19);          // 정강이(피부)
+      const shoe={x:ank.x+Math.cos(a.a2)*17+3, y:ank.y+Math.sin(a.a2)*5+2};
+      seg(ank,shoe, back?SHOE_B:SHOE, 14);          // 신발
+    }
+    function drawArm(q,back){
+      const a=armAng(q), elb=jnt(sh,a.a1,20), hand=jnt(elb,a.a2,17);
+      seg(sh,elb, back?JERSEY_B:JERSEY, 17);        // 위팔(소매)
+      seg(elb,hand, back?SKIN_B:SKIN, 14);          // 아래팔(피부)
+    }
+    // 뒤쪽 팔·다리
+    drawLeg(p+Math.PI,true); drawArm(p,true);
+    // 몸통(져지) + 목
+    seg(hip,sh,JERSEY,32);
+    seg(sh,hd,SKIN,14);
+    // 머리
+    ctx.fillStyle=SKIN; ctx.beginPath(); ctx.arc(hd.x,hd.y,17,0,7); ctx.fill();
+    // 얼굴 + 머리띠 (진행방향 +x 바라봄, 머리 기울기 반영)
+    ctx.save(); ctx.translate(hd.x,hd.y); ctx.rotate(lean);
+      ctx.strokeStyle=BAND; ctx.lineWidth=7; ctx.lineCap="round";
+      ctx.beginPath(); ctx.arc(0,0,15,Math.PI*1.06,Math.PI*1.96); ctx.stroke();   // 머리띠
+      ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(-13,-6); ctx.lineTo(-24,-2); ctx.stroke(); // 띠 꼬리
+      ctx.fillStyle="#3a2b22"; ctx.beginPath(); ctx.arc(8,-1,2.6,0,7); ctx.fill();            // 눈
+      ctx.strokeStyle="#3a2b22"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(6,4,4,0.15,Math.PI-0.5); ctx.stroke(); // 미소
+      ctx.fillStyle="#ff9db0aa"; ctx.beginPath(); ctx.arc(2,6,3,0,7); ctx.fill();             // 볼터치
+    ctx.restore();
+    // 앞쪽 팔·다리
+    drawArm(p+Math.PI,false); drawLeg(p,false);
+    if(fast){ ctx.strokeStyle="#ffffffaa"; ctx.lineWidth=4; ctx.lineCap="round"; for(let i=0;i<4;i++){const yy=-56+i*16; ctx.beginPath(); ctx.moveTo(-30,yy); ctx.lineTo(-30-26-i*8,yy); ctx.stroke();} }
     ctx.restore();
   }
 
   function render(){
-    const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,"#0b1a2a"); g.addColorStop(.6,"#12293b"); g.addColorStop(1,"#0d1117");
+    const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,"#8fd0ff"); g.addColorStop(.5,"#c3e9ff"); g.addColorStop(1,"#eaf9ee");
     ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
     const groundY=H*0.52;
-    // far clouds (slow)
-    ctx.fillStyle="#ffffff10";
-    for(let i=0;i<4;i++){ const x=repX(i*260 - scroll*0.05, W+260)-130; ctx.beginPath(); ctx.arc(x,H*0.18+i*8,34,0,7); ctx.arc(x+34,H*0.18+i*8,26,0,7); ctx.fill(); }
-    // hills (mid)
-    ctx.fillStyle="#14241a";
-    for(let i=0;i<6;i++){ const x=repX(i*200 - scroll*0.25, W+200)-100; ctx.beginPath(); ctx.arc(x,groundY,110,Math.PI,0); ctx.fill(); }
+    // 해 (은은한 글로우 + 방긋)
+    ctx.save(); ctx.globalAlpha=.35; ctx.fillStyle="#fff2c4"; ctx.beginPath(); ctx.arc(W*0.16,H*0.13,42,0,7); ctx.fill(); ctx.restore();
+    ctx.fillStyle="#ffe08a"; ctx.beginPath(); ctx.arc(W*0.16,H*0.13,28,0,7); ctx.fill();
+    // 뭉게구름
+    ctx.fillStyle="#ffffffdd";
+    for(let i=0;i<4;i++){ const x=repX(i*260 - scroll*0.05, W+260)-130, y=H*0.15+(i%2)*26; ctx.beginPath(); ctx.arc(x,y,19,0,7); ctx.arc(x+22,y+5,25,0,7); ctx.arc(x+48,y,17,0,7); ctx.fill(); }
+    // 둥근 초록 언덕 (2겹)
+    ctx.fillStyle="#a3e0a8";
+    for(let i=0;i<6;i++){ const x=repX(i*220 - scroll*0.16, W+220)-110; ctx.beginPath(); ctx.arc(x,groundY+34,120,Math.PI,0); ctx.fill(); }
+    ctx.fillStyle="#7fce89";
+    for(let i=0;i<7;i++){ const x=repX(i*170 - scroll*0.3, W+170)-85; ctx.beginPath(); ctx.arc(x,groundY+20,92,Math.PI,0); ctx.fill(); }
     // trees (near, faster)
     for(let i=0;i<8;i++){ const x=repX(i*150 - scroll*0.6, W+150)-40; tree(x,groundY,1); }
+    // 잔디 경계
+    ctx.fillStyle="#66c076"; ctx.fillRect(0,groundY-5,W,9);
     // road
-    ctx.fillStyle="#20262d"; ctx.fillRect(0,groundY,W,H-groundY);
-    ctx.strokeStyle="#3b434c"; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(0,groundY); ctx.lineTo(W,groundY); ctx.stroke();
+    ctx.fillStyle="#5b6472"; ctx.fillRect(0,groundY,W,H-groundY);
+    ctx.fillStyle="#6a7382"; ctx.fillRect(0,groundY,W,5);
     // center dashes (fast) — two rows for parallax speed
-    ctx.strokeStyle="#6b747d"; ctx.lineWidth=6; ctx.setLineDash([30,26]);
+    ctx.strokeStyle="#e9eff6"; ctx.lineWidth=6; ctx.setLineDash([30,26]);
     ctx.beginPath(); ctx.lineDashOffset=-(scroll%56); ctx.moveTo(0,groundY+30); ctx.lineTo(W,groundY+30); ctx.stroke();
-    ctx.strokeStyle="#7d868f"; ctx.lineWidth=9; ctx.setLineDash([40,30]);
+    ctx.strokeStyle="#f6fafe"; ctx.lineWidth=9; ctx.setLineDash([40,30]);
     ctx.beginPath(); ctx.lineDashOffset=-((scroll*1.6)%70); ctx.moveTo(0,groundY+68); ctx.lineTo(W,groundY+68); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset=0;
     // km markers (aligned to real distance)
     const kmPx = SCROLL_K*1000; // scroll units per km
     const kmN=Math.round(TARGET_M/1000);
     for(let km=1;km<=kmN;km++){ const mx = km*kmPx - scroll + W*0.28; // marker meets runner at that km
-      if(mx>-30&&mx<W+30){ ctx.fillStyle="#d29922"; ctx.fillRect(mx,groundY-52,4,52);
-        ctx.fillStyle="#0d1117"; ctx.fillRect(mx-15,groundY-66,36,18); ctx.strokeStyle="#d29922"; ctx.lineWidth=2; ctx.strokeRect(mx-15,groundY-66,36,18);
-        ctx.fillStyle="#d29922"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText(km+"K",mx+3,groundY-53); } }
+      if(mx>-30&&mx<W+30){ ctx.fillStyle="#c98a3a"; ctx.fillRect(mx,groundY-52,4,52);
+        ctx.fillStyle="#ffffff"; if(ctx.roundRect){ctx.beginPath();ctx.roundRect(mx-16,groundY-68,38,20,7);ctx.fill();} else ctx.fillRect(mx-16,groundY-68,38,20);
+        ctx.strokeStyle="#ff6f9c"; ctx.lineWidth=2.5; if(ctx.roundRect){ctx.beginPath();ctx.roundRect(mx-16,groundY-68,38,20,7);ctx.stroke();}
+        ctx.fillStyle="#ff6f9c"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText(km+"K",mx+3,groundY-54); } }
     // runner (feet on road, clearly above pads)
     const rs=Math.max(1.1, Math.min(1.9, H/520));
     drawRunner(W*0.28, groundY, rs, gait, bob, cad>150&&eff>0.6);
@@ -288,9 +315,13 @@
     const mk=$("cadMark"); const gp=Math.max(0,Math.min(100,(cad-GAUGE_MIN)/(GAUGE_MAX-GAUGE_MIN)*100));
     mk.style.left=gp+"%"; const inZone=Math.abs(cad-TARGET_CAD)<=CAD_TOL&&cad>1;
     mk.style.background=inZone?"var(--ok)":(cad>TARGET_CAD?"var(--warn)":"#fff");
-    // distance ribbon + bar (top area, clear of runner)
-    ctx.fillStyle="#e6edf3"; ctx.font="bold 15px sans-serif"; ctx.textAlign="center"; ctx.fillText((dist/1000).toFixed(2)+" / "+(TARGET_M/1000).toFixed(2)+" km",W/2,H*0.30);
-    const bw=W*0.7,bx=(W-bw)/2,by=H*0.33; ctx.fillStyle="#21262d"; ctx.fillRect(bx,by,bw,7); ctx.fillStyle="#3fb950"; ctx.fillRect(bx,by,bw*(dist/TARGET_M),7);
+    // distance ribbon + bar (밝은 하늘에서도 읽히게 알약 배경)
+    const dTxt=(dist/1000).toFixed(2)+" / "+(TARGET_M/1000).toFixed(2)+" km";
+    ctx.font="bold 15px sans-serif"; ctx.textAlign="center";
+    const tw=ctx.measureText(dTxt).width, pill=tw+22;
+    ctx.fillStyle="#ffffffcc"; if(ctx.roundRect){ctx.beginPath();ctx.roundRect(W/2-pill/2,H*0.30-15,pill,22,11);ctx.fill();}
+    ctx.fillStyle="#2a4133"; ctx.fillText(dTxt,W/2,H*0.30+1);
+    const bw=W*0.7,bx=(W-bw)/2,by=H*0.33; ctx.fillStyle="#ffffff99"; ctx.fillRect(bx,by,bw,7); ctx.fillStyle="#ff6f9c"; ctx.fillRect(bx,by,bw*(dist/TARGET_M),7);
     const c=$("coach"); c.textContent=coachTxt||"L·R 번갈아 두드려요"; c.style.color=coachColor;
     cvs.style.transform=(running&&gly<15&&cad>1)?("translate("+((Math.random()*4-2)|0)+"px,"+((Math.random()*4-2)|0)+"px)"):"";
   }
