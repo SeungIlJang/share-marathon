@@ -134,6 +134,7 @@
   const RETIRE_MS=3000;        // 체력 0 지속 시 기권까지
   let beatAt=0, sndOn=true, actx=null;   // 메트로놈(목표 케이던스 박자)
   let course=[], curSeg=null, curTarget=175, splitKm=0;   // 구간 지형/급수대/스플릿
+  let slope=0, drops=[];                                   // 슬로프 기울기 + 급수대 물방울
   const CHEERS=["좋아요 💪","가볍다 가벼워 ✨","리듬 최고 🎵","페이스 굿 👍","잘하고 있어요 🔥","그대로 유지 🙌"];
 
   const $=id=>document.getElementById(id);
@@ -311,6 +312,11 @@
     // 뭉게구름
     ctx.fillStyle="#ffffffdd";
     for(let i=0;i<4;i++){ const x=repX(i*260 - scroll*0.05, W+260)-130, y=H*0.15+(i%2)*26; ctx.beginPath(); ctx.arc(x,y,19,0,7); ctx.arc(x+22,y+5,25,0,7); ctx.arc(x+48,y,17,0,7); ctx.fill(); }
+    // 오르막/내리막: 지면 전체를 러너 발밑 기준으로 기울여 슬로프 느낌
+    const slopeTgt=(running&&curSeg)?(curSeg.type==='up'?0.14:curSeg.type==='down'?-0.14:0):0;
+    slope+=(slopeTgt-slope)*0.05;
+    const pivX=W*0.28;
+    ctx.save(); ctx.translate(pivX,groundY); ctx.rotate(-slope); ctx.translate(-pivX,-groundY);
     // 둥근 초록 언덕 (2겹)
     ctx.fillStyle="#a3e0a8";
     for(let i=0;i<6;i++){ const x=repX(i*220 - scroll*0.16, W+220)-110; ctx.beginPath(); ctx.arc(x,groundY+34,120,Math.PI,0); ctx.fill(); }
@@ -318,16 +324,16 @@
     for(let i=0;i<7;i++){ const x=repX(i*170 - scroll*0.3, W+170)-85; ctx.beginPath(); ctx.arc(x,groundY+20,92,Math.PI,0); ctx.fill(); }
     // trees (near, faster)
     for(let i=0;i<8;i++){ const x=repX(i*150 - scroll*0.6, W+150)-40; tree(x,groundY,1); }
-    // 잔디 경계
-    ctx.fillStyle="#66c076"; ctx.fillRect(0,groundY-5,W,9);
-    // road
-    ctx.fillStyle="#5b6472"; ctx.fillRect(0,groundY,W,H-groundY);
-    ctx.fillStyle="#6a7382"; ctx.fillRect(0,groundY,W,5);
+    // 잔디 경계 (기울임 시 가장자리 빈틈 없게 넓게)
+    ctx.fillStyle="#66c076"; ctx.fillRect(-W,groundY-5,3*W,9);
+    // road (넓게 + 아래로 길게 → 회전해도 코너 안 비침)
+    ctx.fillStyle="#5b6472"; ctx.fillRect(-W,groundY,3*W,(H-groundY)+H);
+    ctx.fillStyle="#6a7382"; ctx.fillRect(-W,groundY,3*W,5);
     // center dashes (fast) — two rows for parallax speed
     ctx.strokeStyle="#e9eff6"; ctx.lineWidth=6; ctx.setLineDash([30,26]);
-    ctx.beginPath(); ctx.lineDashOffset=-(scroll%56); ctx.moveTo(0,groundY+30); ctx.lineTo(W,groundY+30); ctx.stroke();
+    ctx.beginPath(); ctx.lineDashOffset=-(scroll%56); ctx.moveTo(-W,groundY+30); ctx.lineTo(2*W,groundY+30); ctx.stroke();
     ctx.strokeStyle="#f6fafe"; ctx.lineWidth=9; ctx.setLineDash([40,30]);
-    ctx.beginPath(); ctx.lineDashOffset=-((scroll*1.6)%70); ctx.moveTo(0,groundY+68); ctx.lineTo(W,groundY+68); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset=0;
+    ctx.beginPath(); ctx.lineDashOffset=-((scroll*1.6)%70); ctx.moveTo(-W,groundY+68); ctx.lineTo(2*W,groundY+68); ctx.stroke(); ctx.setLineDash([]); ctx.lineDashOffset=0;
     // km markers (aligned to real distance)
     const kmPx = SCROLL_K*1000; // scroll units per km
     const kmN=Math.round(TARGET_M/1000);
@@ -336,17 +342,27 @@
         ctx.fillStyle="#ffffff"; if(ctx.roundRect){ctx.beginPath();ctx.roundRect(mx-16,groundY-68,38,20,7);ctx.fill();} else ctx.fillRect(mx-16,groundY-68,38,20);
         ctx.strokeStyle="#ff6f9c"; ctx.lineWidth=2.5; if(ctx.roundRect){ctx.beginPath();ctx.roundRect(mx-16,groundY-68,38,20,7);ctx.stroke();}
         ctx.fillStyle="#ff6f9c"; ctx.font="bold 12px sans-serif"; ctx.textAlign="center"; ctx.fillText(km+"K",mx+3,groundY-54); } }
-    // 지형/급수대 표시
-    if(running&&curSeg){
-      if(curSeg.type==='water'){
-        ctx.font="bold 30px sans-serif"; ctx.textAlign="center"; ctx.fillText("💧",W*0.62,groundY-24);
-        ctx.fillStyle="#2a4a6a"; ctx.font="bold 13px sans-serif"; ctx.fillText("급수대",W*0.62,groundY-6);
-      } else if(curSeg.type==='up'){ ctx.font="26px sans-serif"; ctx.textAlign="left"; ctx.fillText("⛰️ 오르막",12,groundY-16); }
-      else if(curSeg.type==='down'){ ctx.font="26px sans-serif"; ctx.textAlign="left"; ctx.fillText("⬇️ 내리막",12,groundY-16); }
-    }
-    // runner (feet on road, clearly above pads)
+    // runner (feet on road) — 슬로프에 맞춰 러너도 함께 기울어짐
     const rs=Math.max(1.1, Math.min(1.9, H/520));
     drawRunner(W*0.28, groundY, rs, gait, bob, cad>150&&eff>0.6);
+    ctx.restore();   // 지면 기울임 프레임 종료 (HUD·아래 요소는 수평 유지)
+
+    // 급수대: 물 뿌리기 (물방울 파티클)
+    if(running&&curSeg&&curSeg.type==='water'){
+      for(let k=0;k<3;k++) drops.push({x:W*0.28+(Math.random()*90-30), y:groundY-130-Math.random()*30, vx:Math.random()*2.4-0.4, vy:Math.random()*2+1});
+    }
+    ctx.strokeStyle="#5bbdff"; ctx.lineWidth=3; ctx.lineCap="round";
+    for(let k=drops.length-1;k>=0;k--){ const d=drops[k]; d.vy+=0.5; d.x+=d.vx; d.y+=d.vy;
+      if(d.y>groundY+2){ drops.splice(k,1); continue; }
+      ctx.globalAlpha=0.85; ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-d.vx*1.4,d.y-d.vy*1.4); ctx.stroke(); }
+    ctx.globalAlpha=1;
+    // 지형/급수대 배지 (수평 고정)
+    if(running&&curSeg){
+      ctx.textAlign="left";
+      if(curSeg.type==='up'){ ctx.font="24px sans-serif"; ctx.fillStyle="#7a4a1a"; ctx.fillText("⛰️ 오르막",12,groundY-22); }
+      else if(curSeg.type==='down'){ ctx.font="24px sans-serif"; ctx.fillStyle="#1a5a7a"; ctx.fillText("⬇️ 내리막",12,groundY-22); }
+      else if(curSeg.type==='water'){ ctx.font="bold 16px sans-serif"; ctx.fillStyle="#1f7ac0"; ctx.fillText("💧 급수대 — 회복 중",12,groundY-22); }
+    }
 
     // HUD
     $("clock").textContent=fmtT(raceT);
