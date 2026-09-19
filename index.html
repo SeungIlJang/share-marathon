@@ -66,6 +66,14 @@
   .btn{background:linear-gradient(135deg,#ff8fb4,#ff6f9c);color:#fff;border:none;border-radius:18px;padding:16px 34px;font-size:19px;font-weight:900;box-shadow:0 8px 20px #ff6f9c55;}
   .finTime{font-size:52px;font-weight:900;font-variant-numeric:tabular-nums;}
   .delta{font-size:18px;font-weight:800;}
+  #lbList{width:100%;max-width:360px;max-height:56vh;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:6px;box-shadow:0 4px 14px #7fb0e022;}
+  .lbrow{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:14px;}
+  .lbrow .rk{width:34px;font-weight:900;color:var(--dim);text-align:center;}
+  .lbrow .nm{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .lbrow .sc{font-weight:800;font-variant-numeric:tabular-nums;}
+  .lbrow.me{background:#dcecff;border:1.5px solid var(--accent);}
+  .lbrow.top1 .rk{color:#e0a800}.lbrow.top2 .rk{color:#9aa7b4}.lbrow.top3 .rk{color:#c9803a}
+  .lbsep{text-align:center;color:var(--dim);font-size:12px;padding:3px;}
 </style>
 </head>
 <body>
@@ -106,7 +114,10 @@
   </div>
   <p id="goalP">🎯 목표: <b>175spm</b> · 4:53/km · 완주 <b>24:25</b></p>
   <p style="font-size:13px">🥁 <b>박자</b>에 딱 맞춰 밟으면 <b>PERFECT·콤보</b>(🪙코인 적립) · 🏃 <b>라이벌</b>과 경주 · 완주 <b>랭크(S~D)</b><br>💧급수대선 <b>타이밍 물마시기</b> · 체력 낮으면 <b>⚡파워젤</b>(코인) · 너무 빠르면 <b>기권</b></p>
-  <button class="btn" id="startBtn">스타트 🏁</button>
+  <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+    <button class="btn" id="startBtn">스타트 🏁</button>
+    <button class="btn" id="lbBtnStart" style="background:linear-gradient(135deg,#ffd23f,#ff9f1c);color:#5a3a00">🏆 순위표</button>
+  </div>
 </div>
 
 <div class="overlay" id="finScreen" style="display:none">
@@ -114,7 +125,16 @@
   <div class="finTime" id="finTime">00:00</div>
   <div class="delta" id="finDelta"></div>
   <p id="finStats"></p>
-  <button class="btn" id="againBtn">다시 달리기</button>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+    <button class="btn" id="againBtn">다시 달리기</button>
+    <button class="btn" id="lbBtn" style="background:linear-gradient(135deg,#ffd23f,#ff9f1c);color:#5a3a00">🏆 순위표</button>
+  </div>
+</div>
+
+<div class="overlay" id="lbScreen" style="display:none">
+  <h1>🏆 TOP 100 · <span id="lbDist">5K</span></h1>
+  <div id="lbList"></div>
+  <button class="btn" id="lbClose">닫기</button>
 </div>
 
 <script>
@@ -474,6 +494,30 @@
     $("startScreen").style.display="none"; $("finScreen").style.display="none";
     lastFrame=now(); requestAnimationFrame(loop);
   }
+  // ===== Top 100 순위표 (로컬 저장 + 벤치마크 시드) =====
+  let playerName=localStorage.getItem('marathon_name')||'나';
+  const LB_KEY=d=>'marathon_lb_'+d;
+  const NPC=["번개발","페이스메이커","철인러너","바람돌이","질주왕","리듬장인","스퍼트","케이던스","완주요정","트랙스타","로드러너","심박왕","호흡법","스플릿","젤러버","급수요정","오르막왕","내리막신","스텝마스터","콤보킹","퍼펙트러너","엔듀런스","라스트원","페이스킬러","마라톤신"];
+  const esc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  function seedLB(d){ const base={'5K':4600,'10K':8600,'하프':16500,'풀':31000}[d]||5000, arr=[];
+    for(let i=0;i<100;i++){ arr.push({name:NPC[i%NPC.length]+(Math.floor(i/NPC.length)+1), score:Math.max(50,Math.round(base*(1-i*0.0065)-i*6)), you:false}); }
+    return arr; }
+  function loadLB(d){ let a; try{a=JSON.parse(localStorage.getItem(LB_KEY(d)))}catch(e){}
+    if(!Array.isArray(a)||!a.length){ a=seedLB(d); localStorage.setItem(LB_KEY(d),JSON.stringify(a)); } return a; }
+  function submitScore(d,sc){ const a=loadLB(d), rank=a.filter(e=>e.score>sc).length+1;
+    if(rank<=100){ a.push({name:playerName,score:sc,you:true}); a.sort((x,y)=>y.score-x.score); localStorage.setItem(LB_KEY(d),JSON.stringify(a.slice(0,100))); }
+    return rank; }
+  function lbRow(rk,e){ const cls=(rk<=3?"top"+rk:"")+(e.you?" me":""), medal=rk===1?"🥇":rk===2?"🥈":rk===3?"🥉":rk;
+    return '<div class="lbrow '+cls+'"><span class="rk">'+medal+'</span><span class="nm">'+(e.you?"⭐ ":"")+esc(e.name)+'</span><span class="sc">'+e.score+'</span></div>'; }
+  function renderLB(d){ $("lbDist").textContent=d; const a=loadLB(d); let html="";
+    a.slice(0,15).forEach((e,i)=>html+=lbRow(i+1,e));
+    const myIdx=a.findIndex(e=>e.you); if(myIdx>=15) html+='<div class="lbsep">⋯</div>'+lbRow(myIdx+1,a[myIdx]);
+    $("lbList").innerHTML=html; }
+  function openLB(d){ renderLB(d); $("finScreen").style.display="none"; $("startScreen").style.display="none"; $("lbScreen").style.display="flex"; }
+  $("lbClose").addEventListener("click",()=>{ $("lbScreen").style.display="none"; $("startScreen").style.display="flex"; assignRandomTarget(); requestAnimationFrame(idleLoop); });
+  $("lbBtn").addEventListener("click",()=>openLB(curDist));
+  $("lbBtnStart").addEventListener("click",()=>openLB(curDist));
+
   function finish(){
     running=false; const t=raceT, key="marathon_pb_"+curDist; const pb=parseFloat(localStorage.getItem(key)||"0");
     let dtx="",title="🎉 "+curDist+" 완주!";
@@ -487,7 +531,15 @@
     // 최고 점수 저장
     const sKey="marathon_score_"+curDist, sPb=parseInt(localStorage.getItem(sKey)||"0");
     let sNew=""; if(score>sPb){localStorage.setItem(sKey,String(score));sNew=" 🎉신기록";}
-    let stats="🏆 점수 <b>"+score+"</b>"+sNew+" · 최대 콤보 "+maxCombo+
+    // Top 100 순위 등록
+    const lbRank=submitScore(curDist,score);
+    let lbLine;
+    if(lbRank===1) lbLine="👑 <b>TOP 100 1위!</b> 최강자 등극!";
+    else if(lbRank<=10) lbLine="🏆 <b>TOP 10 진입! "+lbRank+"위</b> 🎉";
+    else if(lbRank<=100) lbLine="🏆 <b>TOP 100 진입! "+lbRank+"위</b>";
+    else lbLine="아쉽게 "+lbRank+"위 — TOP 100 도전!";
+    let stats=lbLine+
+      "<br>🏆 점수 <b>"+score+"</b>"+sNew+" · 최대 콤보 "+maxCombo+
       "<br>PERFECT "+nPerfect+" · GOOD "+nGood+" · OFF "+nMiss+
       "<br>라이벌 "+(won?"이김 🥇":"짐 😵")+" · 폼 붕괴 "+formBreaks+"회 · 체력 "+Math.round(gly)+"%";
     // 다음 종목 해금
