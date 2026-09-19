@@ -122,7 +122,7 @@
   "use strict";
   // ---- tunables (현실 러닝 모델) ----
   const WINDOW=12, MIN_INT=150, SUSTAIN=188, K_EFF=3.0, IDLE_MS=900;
-  const SCROLL_K=170;   // px per meter-ish (강한 스크롤 체감)
+  const SCROLL_K=260;   // px per meter-ish (강한 스크롤 체감 — 속도감 업)
   // 실제 러닝: 케이던스가 오르면 보폭도 함께 늘어난다 → 속도 = 케이던스 × 보폭
   const strideFor = c => Math.max(0.72, Math.min(1.55, 0.96 + 0.014*(c-160)));
   let TARGET_CAD=175;                 // 매 판 랜덤 배정
@@ -144,6 +144,7 @@
   let slope=0, drops=[];                                   // 슬로프 기울기 + 급수대 물방울
   let combo=0, maxCombo=0, score=0, nPerfect=0, nGood=0, nMiss=0, judge=null, sparks=[]; // 판정·콤보·점수
   let rivalDist=0, rivalAhead=true;                        // 라이벌(고스트) 경주
+  let shake=0;                                             // 화면 흔들림(콤보·스퍼트·위기)
   let coins=parseInt(localStorage.getItem('marathon_coins')||'0'); // 코인(파워젤 구매용, 영구 저장)
   let drinkOpenUntil=0, gelCdUntil=0;                      // 급수대 물마시기 창 / 젤 쿨다운
   const GEL_COST=25, GEL_HEAL=35;
@@ -181,7 +182,8 @@
     else if(err<bm*0.34){kind="GOOD";col="#4aa3ff";pts=55;nGood++;coins+=1;}
     else {kind="OFF";col="#8496a8";pts=0;nMiss++;combo=0;}
     if(pts>0){combo++;maxCombo=Math.max(maxCombo,combo);score+=pts+combo*5;saveCoins();}
-    judge={txt:kind,col,t:now()};
+    if(pts>0&&combo>0&&combo%10===0){ shake=9; judge={txt:"🔥 "+combo+" COMBO!",col:"#ff6f9c",t:now()}; }
+    else judge={txt:kind,col,t:now()};
     if(kind==="PERFECT!"){ for(let i=0;i<9;i++) sparks.push({x:W*0.28+(Math.random()*36-18),y:H*0.52-72,vx:Math.random()*5-2.5,vy:-(Math.random()*3.5+1.2),life:1}); }
   }
   function tap(side){
@@ -213,21 +215,24 @@
   // 코스: 지형(오르막/내리막→목표 케이던스 변동)·급수대 구간
   function buildCourse(){
     course=[
-      {to:0.15,type:'flat',d:0},
-      {to:0.30,type:'up',d:12},
-      {to:0.38,type:'water',d:0},
-      {to:0.55,type:'flat',d:0},
-      {to:0.70,type:'down',d:-12},
-      {to:0.85,type:'up',d:14},
-      {to:0.92,type:'water',d:0},
-      {to:1.01,type:'flat',d:0},
+      {to:0.10,type:'flat',d:0},
+      {to:0.22,type:'up',d:12},
+      {to:0.30,type:'down',d:-10},
+      {to:0.36,type:'water',d:0},
+      {to:0.48,type:'flat',d:0},
+      {to:0.60,type:'up',d:14},
+      {to:0.68,type:'down',d:-12},
+      {to:0.74,type:'water',d:0},
+      {to:0.88,type:'up',d:12},
+      {to:1.01,type:'sprint',d:8},
     ];
     curSeg=null; curTarget=TARGET_CAD; splitKm=0;
   }
   function onSeg(seg){
     if(seg.type==='up') setCoach("⛰️ 오르막! 케이던스 올려요 (+"+seg.d+")",'var(--warn)');
     else if(seg.type==='down') setCoach("⬇️ 내리막 — 케이던스 낮춰 편하게",'var(--accent)');
-    else if(seg.type==='water') setCoach("💧 급수대! 잠깐 쉬며 체력 회복",'var(--accent)');
+    else if(seg.type==='water') setCoach("💧 급수대! 박자 맞춰 물 마시기",'var(--accent)');
+    else if(seg.type==='sprint'){ setCoach("🔥 라스트 스퍼트!! 전력 질주!",'var(--bad)'); shake=8; }
   }
   const cheer=()=>CHEERS[(splitKm-1)%CHEERS.length];
 
@@ -245,6 +250,7 @@
     rivalDist += TGT_SPEED*dtS*SCALE;
     const ahead=dist>=rivalDist;
     if(ahead!==rivalAhead){ rivalAhead=ahead; setCoach(ahead?"🔥 라이벌 추월!":"라이벌이 앞서갔어요 — 따라잡아요!", ahead?'var(--ok)':'var(--warn)'); }
+    if(seg.type==='sprint') shake=Math.max(shake,2.2);   // 스퍼트 구간 지속 럼블
     // 메트로놈: 평소엔 목표 케이던스 박자, 급수대엔 물마시기 박자(느림) + 마시기 창 오픈
     const beatMs=water?620:60000/curTarget;
     if(!beatAt)beatAt=now()+beatMs;
@@ -389,7 +395,7 @@
     const pxM=SCROLL_K/SCALE, rvx=W*0.28+(rivalDist-dist)*pxM;
     if(running&&rvx>-60&&rvx<W+60){ ctx.globalAlpha=0.5; drawRunner(rvx,groundY,rs*0.95,raceT*(TARGET_CAD/60)*Math.PI,0,false,"#ff6f9c"); ctx.globalAlpha=1; }
     // runner (feet on road) — 슬로프에 맞춰 러너도 함께 기울어짐
-    drawRunner(W*0.28, groundY, rs, gait, bob, cad>150&&eff>0.6);
+    drawRunner(W*0.28, groundY, rs, gait, bob, (cad>135&&eff>0.6)||(curSeg&&curSeg.type==='sprint'));
     ctx.restore();   // 지면 기울임 프레임 종료 (HUD·아래 요소는 수평 유지)
 
     // 급수대: 물 뿌리기 (물방울 파티클)
@@ -448,7 +454,9 @@
     ctx.fillStyle="#2a4133"; ctx.fillText(dTxt,W/2,H*0.30+1);
     const bw=W*0.7,bx=(W-bw)/2,by=H*0.33; ctx.fillStyle="#ffffff99"; ctx.fillRect(bx,by,bw,7); ctx.fillStyle="#ff6f9c"; ctx.fillRect(bx,by,bw*(dist/TARGET_M),7);
     const c=$("coach"); c.textContent=coachTxt||"L·R 번갈아 두드려요"; c.style.color=coachColor;
-    cvs.style.transform=(running&&gly<15&&cad>1)?("translate("+((Math.random()*4-2)|0)+"px,"+((Math.random()*4-2)|0)+"px)"):"";
+    const shakeAmt=Math.max(shake,(running&&gly<15&&cad>1)?3:0);
+    cvs.style.transform=shakeAmt>0.4?("translate("+(((Math.random()*2-1)*shakeAmt)|0)+"px,"+(((Math.random()*2-1)*shakeAmt)|0)+"px)"):"";
+    shake*=0.85;
   }
 
   function loop(t){ if(!running)return; const dt=Math.min(100,t-lastFrame); lastFrame=t; update(dt); render(); requestAnimationFrame(loop); }
@@ -458,7 +466,7 @@
   function start(){
     running=true; taps=[]; lastSide=null; lastTapT=now();
     dist=0;raceT=0;gly=100;eff=1;cad=0;cv=0;speed=0;formBreaks=0;legPhase=0;legTarget=0;bob=0;scroll=0;critT=0;gait=0;
-    combo=0;maxCombo=0;score=0;nPerfect=0;nGood=0;nMiss=0;judge=null;sparks=[];rivalDist=0;rivalAhead=true;
+    combo=0;maxCombo=0;score=0;nPerfect=0;nGood=0;nMiss=0;judge=null;sparks=[];rivalDist=0;rivalAhead=true;shake=0;
     buildCourse();                    // 지형·급수대·스플릿 코스 생성
     setNext("L"); setCoach("박자에 맞춰 왼발(L)부터",'var(--ok)');
     beatAt=now()+60000/TARGET_CAD;   // 메트로놈 시작
