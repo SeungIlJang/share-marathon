@@ -36,6 +36,12 @@
   .mtrack{height:8px;background:#e6eef6;border-radius:5px;overflow:hidden;margin-top:4px;}
   .mfill{height:100%;width:100%;transition:width .12s linear,background .2s;}
 
+  #gelBtn{display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:calc(30% + 14px);z-index:5;
+    background:linear-gradient(135deg,#ffd23f,#ff9f1c);color:#5a3a00;border:none;border-radius:16px;
+    padding:9px 16px;font-size:15px;font-weight:900;box-shadow:0 6px 18px #ff9f1c66;opacity:.55;}
+  #gelBtn small{font-weight:700;font-size:11px;}
+  #gelBtn.ready{opacity:1;animation:gelpulse 1s infinite;}
+  @keyframes gelpulse{0%,100%{box-shadow:0 6px 18px #ff9f1c66}50%{box-shadow:0 0 0 4px #ffd23f88,0 6px 22px #ff9f1caa}}
   #pads{position:absolute;left:0;right:0;bottom:0;height:30%;display:flex;gap:10px;padding:8px 10px calc(env(safe-area-inset-bottom) + 10px);z-index:3;}
   .pad{flex:1;border-radius:28px;border:3px solid var(--line);background:#ffffffee;
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
@@ -81,6 +87,7 @@
     <div class="meter"><div class="lbl"><span>글리코겐(체력)</span><span id="glyPct">100%</span></div>
       <div class="mtrack"><div class="mfill" id="glyFill" style="background:var(--accent)"></div></div></div>
   </div>
+  <button id="gelBtn">⚡ 파워젤 <small>25🪙 · 체력+35</small></button>
   <div id="pads">
     <div class="pad next" id="padL">L<small>👟 왼발</small></div>
     <div class="pad" id="padR">R<small>오른발 👟</small></div>
@@ -98,7 +105,7 @@
     <button class="dbtn" data-d="풀">풀</button>
   </div>
   <p id="goalP">🎯 목표: <b>175spm</b> · 4:53/km · 완주 <b>24:25</b></p>
-  <p style="font-size:13px">🥁 <b>박자(틱)</b>에 딱 맞춰 밟으면 <b>PERFECT·콤보</b>! · 🏃 <b>라이벌</b>과 경주 · 완주 시 <b>랭크(S~D)</b><br>너무 빠르면 체력 소진 <b>기권</b></p>
+  <p style="font-size:13px">🥁 <b>박자</b>에 딱 맞춰 밟으면 <b>PERFECT·콤보</b>(🪙코인 적립) · 🏃 <b>라이벌</b>과 경주 · 완주 <b>랭크(S~D)</b><br>💧급수대선 <b>타이밍 물마시기</b> · 체력 낮으면 <b>⚡파워젤</b>(코인) · 너무 빠르면 <b>기권</b></p>
   <button class="btn" id="startBtn">스타트 🏁</button>
 </div>
 
@@ -137,6 +144,10 @@
   let slope=0, drops=[];                                   // 슬로프 기울기 + 급수대 물방울
   let combo=0, maxCombo=0, score=0, nPerfect=0, nGood=0, nMiss=0, judge=null, sparks=[]; // 판정·콤보·점수
   let rivalDist=0, rivalAhead=true;                        // 라이벌(고스트) 경주
+  let coins=parseInt(localStorage.getItem('marathon_coins')||'0'); // 코인(파워젤 구매용, 영구 저장)
+  let drinkOpenUntil=0, gelCdUntil=0;                      // 급수대 물마시기 창 / 젤 쿨다운
+  const GEL_COST=25, GEL_HEAL=35;
+  const saveCoins=()=>{try{localStorage.setItem('marathon_coins',String(coins));}catch(e){}};
   const CHEERS=["좋아요 💪","가볍다 가벼워 ✨","리듬 최고 🎵","페이스 굿 👍","잘하고 있어요 🔥","그대로 유지 🙌"];
 
   const $=id=>document.getElementById(id);
@@ -166,15 +177,24 @@
     if(!curSeg||curSeg.type==='water')return;
     const bm=60000/curTarget, err=Math.min(Math.abs(t-(beatAt-bm)),Math.abs(beatAt-t));
     let kind,col,pts;
-    if(err<bm*0.16){kind="PERFECT!";col="#3fca6b";pts=100;nPerfect++;gly=Math.min(100,gly+0.8);}
-    else if(err<bm*0.34){kind="GOOD";col="#4aa3ff";pts=55;nGood++;}
+    if(err<bm*0.16){kind="PERFECT!";col="#3fca6b";pts=100;nPerfect++;gly=Math.min(100,gly+0.8);coins+=2;}
+    else if(err<bm*0.34){kind="GOOD";col="#4aa3ff";pts=55;nGood++;coins+=1;}
     else {kind="OFF";col="#8496a8";pts=0;nMiss++;combo=0;}
-    if(pts>0){combo++;maxCombo=Math.max(maxCombo,combo);score+=pts+combo*5;}
+    if(pts>0){combo++;maxCombo=Math.max(maxCombo,combo);score+=pts+combo*5;saveCoins();}
     judge={txt:kind,col,t:now()};
     if(kind==="PERFECT!"){ for(let i=0;i<9;i++) sparks.push({x:W*0.28+(Math.random()*36-18),y:H*0.52-72,vx:Math.random()*5-2.5,vy:-(Math.random()*3.5+1.2),life:1}); }
   }
   function tap(side){
     if(!running)return; const t=now(); lastTapT=t;
+    // 급수대: 타이밍 맞춰 물 마시기 (발 구분 없이, 열린 창에 탭)
+    if(curSeg&&curSeg.type==='water'){
+      flash(side==="L"?padL:padR,"hit");
+      if(now()<=drinkOpenUntil){ gly=Math.min(100,gly+10); coins++; saveCoins(); drinkOpenUntil=0;
+        judge={txt:"🥤 꿀꺽!",col:"#3fca6b",t:now()};
+        for(let i=0;i<10;i++)sparks.push({x:W*0.28+(Math.random()*40-20),y:H*0.52-72,vx:Math.random()*5-2.5,vy:-(Math.random()*3+1),life:1,water:1}); }
+      else { gly=Math.min(100,gly+2); judge={txt:"흘림!",col:"#8496a8",t:now()}; }
+      return;
+    }
     if(side===lastSide){formBreaks++;combo=0;flash(side==="L"?padL:padR,"bad");taps=[];setCoach("같은 발! 번갈아요",'var(--bad)');return;}
     const prev=taps.length?taps[taps.length-1].t:t; const dt=t-prev;
     if(taps.length&&dt<MIN_INT)return;
@@ -225,22 +245,25 @@
     rivalDist += TGT_SPEED*dtS*SCALE;
     const ahead=dist>=rivalDist;
     if(ahead!==rivalAhead){ rivalAhead=ahead; setCoach(ahead?"🔥 라이벌 추월!":"라이벌이 앞서갔어요 — 따라잡아요!", ahead?'var(--ok)':'var(--warn)'); }
-    // 메트로놈(현재 목표 케이던스 박자, 급수대에선 쉼)
-    const beatMs=60000/curTarget;
+    // 메트로놈: 평소엔 목표 케이던스 박자, 급수대엔 물마시기 박자(느림) + 마시기 창 오픈
+    const beatMs=water?620:60000/curTarget;
     if(!beatAt)beatAt=now()+beatMs;
-    if(water){ beatAt=now()+beatMs; }
-    else if(now()>=beatAt){ beatPulse(); beatAt+=beatMs; if(now()-beatAt>beatMs)beatAt=now()+beatMs; }
+    if(now()>=beatAt){
+      if(water){ padL.classList.add("beat");padR.classList.add("beat"); setTimeout(()=>{padL.classList.remove("beat");padR.classList.remove("beat");},170); tick(); drinkOpenUntil=now()+240; }
+      else beatPulse();
+      beatAt+=beatMs; if(now()-beatAt>beatMs)beatAt=now()+beatMs;
+    }
     let targetCad=(!idle&&s.mean>0)?60000/s.mean:0;
     cad+=(targetCad-cad)*Math.min(1,dtS*7); if(idle)cad*=Math.pow(0.05,dtS);
     cv=taps.length>=4?s.cv:(cad>0?0.4:1);
     eff=Math.max(0.4,Math.min(1,1.05-K_EFF*cv));
     if(water){
-      // 급수대: 자동 조깅 + 체력 빠르게 회복, 케이던스 부담 없음
-      gly=Math.min(100,gly+16*dtS);
+      // 급수대: 자동 조깅 + 소량 자동 회복(타이밍 물마시기로 크게 회복)
+      gly=Math.min(100,gly+4*dtS);
       speed=TGT_SPEED*0.5;
       dist+=speed*dtS*SCALE; raceT+=dtS*SCALE; scroll+=speed*dtS*SCROLL_K;
       gait+=(150/60)*Math.PI*dtS; bob*=Math.pow(0.004,dtS); critT=0;
-      if(now()>coachUntil) setCoach("💧 급수대 — 체력 회복 중 "+Math.round(gly)+"%",'var(--accent)');
+      if(now()>coachUntil) setCoach("💧 박자 맞춰 물 마시기! (탭)",'var(--accent)');
       if(dist>=TARGET_M){dist=TARGET_M;finish();}
       return;
     }
@@ -389,16 +412,20 @@
     if(running){ ctx.fillStyle="#ff6f9c"; ctx.font="bold 13px sans-serif";
       if(rvx>=W+60){ ctx.textAlign="right"; ctx.fillText("라이벌 🏃 →",W-10,groundY-92); }
       else if(rvx<=-60){ ctx.textAlign="left"; ctx.fillText("← 🏃 라이벌",10,groundY-92); } }
-    // 퍼펙트 스파크
-    ctx.fillStyle="#ffd23f";
+    // 퍼펙트/물 스파크
     for(let k=sparks.length-1;k>=0;k--){ const sp=sparks[k]; sp.vy+=0.35; sp.x+=sp.vx; sp.y+=sp.vy; sp.life-=0.035;
-      if(sp.life<=0){sparks.splice(k,1);continue;} ctx.globalAlpha=Math.max(0,sp.life); ctx.beginPath(); ctx.arc(sp.x,sp.y,3,0,7); ctx.fill(); }
+      if(sp.life<=0){sparks.splice(k,1);continue;} ctx.globalAlpha=Math.max(0,sp.life); ctx.fillStyle=sp.water?"#5bbdff":"#ffd23f"; ctx.beginPath(); ctx.arc(sp.x,sp.y,3,0,7); ctx.fill(); }
     ctx.globalAlpha=1;
     // 판정 텍스트(떠오르며 사라짐)
     if(judge){ const age=now()-judge.t; if(age<600){ ctx.globalAlpha=1-age/600; ctx.fillStyle=judge.col; ctx.font="900 26px sans-serif"; ctx.textAlign="center"; ctx.fillText(judge.txt,W*0.28,H*0.44-age*0.04); ctx.globalAlpha=1; } }
     // 콤보 + 점수
     if(running&&combo>=3){ ctx.fillStyle="#ff6f9c"; ctx.font="900 22px sans-serif"; ctx.textAlign="center"; ctx.fillText("🔥 "+combo+" COMBO",W*0.5,H*0.40); }
-    if(running){ ctx.fillStyle="#2b3a4a"; ctx.font="bold 14px sans-serif"; ctx.textAlign="right"; ctx.fillText("SCORE "+score,W-12,H*0.46); }
+    if(running){ ctx.textAlign="right"; ctx.fillStyle="#2b3a4a"; ctx.font="bold 14px sans-serif"; ctx.fillText("SCORE "+score,W-12,H*0.46);
+      ctx.fillStyle="#c98a00"; ctx.fillText("🪙 "+coins,W-12,H*0.46+20); }
+    // 파워젤 버튼: 체력 낮고 코인 충분할 때만
+    const gb=$("gelBtn");
+    if(running && gly<45 && coins>=GEL_COST){ gb.style.display="block"; gb.classList.toggle("ready",now()>gelCdUntil); }
+    else gb.style.display="none";
 
     // HUD
     $("clock").textContent=fmtT(raceT);
@@ -472,6 +499,13 @@
   }
   $("sndBtn").addEventListener("click",e=>{ e.stopPropagation(); sndOn=!sndOn; $("sndBtn").textContent=sndOn?"🔊":"🔇";
     try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==="suspended")actx.resume(); }catch(e){} });
+  $("gelBtn").addEventListener("pointerdown",e=>{ e.preventDefault(); e.stopPropagation();
+    if(!running||coins<GEL_COST||now()<gelCdUntil)return;
+    coins-=GEL_COST; saveCoins(); gly=Math.min(100,gly+GEL_HEAL); gelCdUntil=now()+1500;
+    judge={txt:"⚡ 파워젤!",col:"#ff9f1c",t:now()};
+    for(let i=0;i<12;i++)sparks.push({x:W*0.28+(Math.random()*44-22),y:H*0.52-72,vx:Math.random()*6-3,vy:-(Math.random()*4+1),life:1});
+    setCoach("⚡ 파워젤 충전! 체력 +"+GEL_HEAL,'var(--ok)');
+  },{passive:false});
   $("startBtn").addEventListener("click",start);
   $("againBtn").addEventListener("click",()=>{ $("finScreen").style.display="none"; assignRandomTarget(); $("startScreen").style.display="flex"; requestAnimationFrame(idleLoop); });
 
