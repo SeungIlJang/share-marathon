@@ -3,7 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>마라톤 프로토 · 5K</title>
+<title>모두의 마라톤</title>
+<meta name="theme-color" content="#8fd0ff">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="모두의 마라톤">
 <style>
   :root{ --bg:#eaf6ff; --panel:#ffffffe8; --line:#dfe7f0;
     --ok:#3fca6b; --warn:#ffab2e; --bad:#ff5d6c; --accent:#4aa3ff; --pink:#ff6f9c; --txt:#2b3a4a; --dim:#8496a8; }
@@ -116,6 +122,7 @@
   <p style="font-size:13px">🥁 <b>박자</b>에 딱 맞춰 밟으면 <b>PERFECT·콤보</b>(🪙코인 적립) · 🏃 <b>라이벌</b>과 경주 · 완주 <b>랭크(S~D)</b><br>💧급수대선 <b>타이밍 물마시기</b> · 체력 낮으면 <b>⚡파워젤</b>(코인) · 너무 빠르면 <b>기권</b></p>
   <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
     <button class="btn" id="startBtn">스타트 🏁</button>
+    <button class="btn" id="dailyBtn" style="background:linear-gradient(135deg,#a06bff,#7b3ff2);color:#fff">🗓️ 오늘의 챌린지</button>
     <button class="btn" id="lbBtnStart" style="background:linear-gradient(135deg,#ffd23f,#ff9f1c);color:#5a3a00">🏆 순위표</button>
   </div>
 </div>
@@ -129,6 +136,7 @@
     <button class="btn" id="reviveBtn" style="display:none;background:linear-gradient(135deg,#4aa3ff,#2b7ae0);color:#fff">📺 부활</button>
     <button class="btn" id="dblBtn" style="display:none;background:linear-gradient(135deg,#3fca6b,#2a9d55);color:#fff">📺 코인 2배</button>
     <button class="btn" id="againBtn">다시 달리기</button>
+    <button class="btn" id="shareBtn" style="background:linear-gradient(135deg,#4aa3ff,#2b7ae0);color:#fff">📤 공유</button>
     <button class="btn" id="lbBtn" style="background:linear-gradient(135deg,#ffd23f,#ff9f1c);color:#5a3a00">🏆 순위표</button>
   </div>
 </div>
@@ -174,6 +182,7 @@
   let rivalDist=0, rivalAhead=true;                        // 라이벌(고스트) 경주
   let shake=0;                                             // 화면 흔들림(콤보·스퍼트·위기)
   let runCoins=0, revived=false;                           // 이번 판 적립 코인 / 광고 부활 사용 여부
+  let dailyMode=false, lastResult=null;                    // 오늘의 챌린지 / 공유용 마지막 결과
   let coins=parseInt(localStorage.getItem('marathon_coins')||'0'); // 코인(파워젤 구매용, 영구 저장)
   let drinkOpenUntil=0, gelCdUntil=0;                      // 급수대 물마시기 창 / 젤 쿨다운
   const GEL_COST=25, GEL_HEAL=35;
@@ -492,8 +501,8 @@
   function idleLoop(t){ if(running){lastFrame=now();requestAnimationFrame(loop);return;}
     scroll=t*0.35; gait=t/1000*(172/60)*Math.PI; cad=172; speed=4; eff=1; gly=100; bob=0; render(); requestAnimationFrame(idleLoop); }
 
-  function start(){
-    running=true; taps=[]; lastSide=null; lastTapT=now();
+  function start(daily){
+    running=true; dailyMode=!!daily; taps=[]; lastSide=null; lastTapT=now();
     dist=0;raceT=0;gly=100;eff=1;cad=0;cv=0;speed=0;formBreaks=0;legPhase=0;legTarget=0;bob=0;scroll=0;critT=0;gait=0;
     combo=0;maxCombo=0;score=0;nPerfect=0;nGood=0;nMiss=0;judge=null;sparks=[];rivalDist=0;rivalAhead=true;shake=0;runCoins=0;revived=false;
     buildCourse();                    // 지형·급수대·스플릿 코스 생성
@@ -538,6 +547,16 @@
   $("reviveBtn").addEventListener("click",()=>{ $("reviveBtn").style.display="none"; showRewardedAd(revive); });
   $("dblBtn").addEventListener("click",()=>{ $("dblBtn").style.display="none"; showRewardedAd(()=>{ coins+=runCoins; saveCoins(); alert("🪙 코인 2배 보너스 +"+runCoins+"  (보유 "+coins+")"); }); });
 
+  // ===== 결과 공유 =====
+  function shareResult(justLink){
+    const txt=(justLink||!lastResult)?"🏃 '모두의 마라톤' — 박자 리듬 러닝 게임! 같이 달려요":
+      ("🏃 모두의 마라톤 "+lastResult.dist+" 완주! 점수 "+lastResult.score+" · "+lastResult.rank+"위 🏆");
+    if(navigator.share){ navigator.share({title:"모두의 마라톤",text:txt,url:GAME_URL}).catch(()=>{}); }
+    else if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt+" "+GAME_URL); alert("결과 링크 복사됨! 붙여넣어 공유하세요 📤"); }
+    else alert(txt+"\n"+GAME_URL);
+  }
+  $("shareBtn").addEventListener("click",()=>shareResult(false));
+
   function finish(){
     running=false; const t=raceT, key="marathon_pb_"+curDist; const pb=parseFloat(localStorage.getItem(key)||"0");
     let dtx="",title="🎉 "+curDist+" 완주!";
@@ -565,8 +584,20 @@
     // 다음 종목 해금
     const i=ORDER.indexOf(curDist);
     if(i>=0 && i+1<ORDER.length){ if(i>=unlock()){ localStorage.setItem('marathon_unlock',String(i+1)); stats+="<br>🔓 <b>"+ORDER[i+1]+"</b> 해금!"; } refreshDistButtons(); }
+    // 오늘의 챌린지 연속출석(streak)
+    if(dailyMode && localStorage.getItem('marathon_daily_done')!==todayStr()){
+      const last=localStorage.getItem('marathon_daily_last'); let st=parseInt(localStorage.getItem('marathon_streak')||'0');
+      st=(last===yStr())?st+1:1;
+      localStorage.setItem('marathon_streak',String(st)); localStorage.setItem('marathon_daily_done',todayStr()); localStorage.setItem('marathon_daily_last',todayStr());
+      stats="🗓️ <b>오늘의 챌린지 완료!</b> 🔥 "+st+"일 연속<br>"+stats; refreshDailyBtn();
+    }
+    lastResult={dist:curDist,score,rank:lbRank};
     $("finStats").innerHTML=stats;
     $("dblBtn").style.display=(runCoins>0)?"inline-block":"none"; $("reviveBtn").style.display="none";
+    // 별점/공유 유도 (3회 완주 시 1회)
+    const comp=parseInt(localStorage.getItem('marathon_completions')||'0')+1; localStorage.setItem('marathon_completions',String(comp));
+    if(comp===3 && !localStorage.getItem('marathon_rated')){ localStorage.setItem('marathon_rated','1');
+      setTimeout(()=>{ if(confirm("재미있으셨나요? ⭐ 친구에게 공유하거나 별점으로 응원해주세요!")) shareResult(true); },700); }
     $("finScreen").style.display="flex"; requestAnimationFrame(idleLoop);
   }
   function dnf(){
@@ -588,7 +619,18 @@
     for(let i=0;i<12;i++)sparks.push({x:W*0.28+(Math.random()*44-22),y:H*0.52-72,vx:Math.random()*6-3,vy:-(Math.random()*4+1),life:1});
     setCoach("⚡ 파워젤 충전! 체력 +"+GEL_HEAL,'var(--ok)');
   },{passive:false});
-  $("startBtn").addEventListener("click",start);
+  // ===== 오늘의 챌린지 + 연속출석(streak) =====
+  const GAME_URL="https://seungiljang.github.io/share-marathon/";
+  function dstr(d){ return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); }
+  const todayStr=()=>dstr(new Date());
+  const yStr=()=>{ const d=new Date(); d.setDate(d.getDate()-1); return dstr(d); };
+  function dailyCad(){ const d=new Date(); const seed=d.getFullYear()*372+(d.getMonth()+1)*31+d.getDate(); return TCAD_MIN+(seed%(TCAD_MAX-TCAD_MIN+1)); }
+  function refreshDailyBtn(){ const b=$("dailyBtn"); if(!b)return; const st=parseInt(localStorage.getItem('marathon_streak')||'0'); const done=localStorage.getItem('marathon_daily_done')===todayStr();
+    b.innerHTML="🗓️ 오늘의 챌린지"+(st>0?" 🔥"+st:"")+(done?" ✅":""); }
+  function startDaily(){ selectDist('5K'); TARGET_CAD=dailyCad(); updateTargetUI(); start(true); }
+  $("dailyBtn").addEventListener("click",startDaily);
+
+  $("startBtn").addEventListener("click",()=>start(false));
   $("againBtn").addEventListener("click",()=>{ $("finScreen").style.display="none"; assignRandomTarget(); $("startScreen").style.display="flex"; requestAnimationFrame(idleLoop); });
 
   // 케이던스 게이지 초록존(현재 목표 기준)
@@ -629,7 +671,7 @@
     if(ORDER.indexOf(b.dataset.d)>unlock()) return; // 잠김
     selectDist(b.dataset.d);
   }));
-  selectDist('5K'); refreshDistButtons();
+  selectDist('5K'); refreshDistButtons(); refreshDailyBtn();
 
   resize(); requestAnimationFrame(idleLoop);
 })();

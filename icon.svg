@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fd0ff"/>
+      <stop offset="0.55" stop-color="#c3e9ff"/>
+      <stop offset="1" stop-color="#eaf9ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#sky)"/>
+  <!-- sun -->
+  <circle cx="118" cy="120" r="46" fill="#ffe08a"/>
+  <!-- ground -->
+  <rect x="0" y="360" width="512" height="152" fill="#7fce89"/>
+  <rect x="0" y="360" width="512" height="16" fill="#66c076"/>
+  <!-- runner (dark pictogram) -->
+  <g fill="none" stroke="#1f242c" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+    <!-- back leg -->
+    <path d="M262 300 L205 356 L150 340"/>
+    <!-- back arm -->
+    <path d="M300 210 L356 232 L392 210"/>
+    <!-- torso -->
+    <path d="M238 300 L300 214"/>
+    <!-- front leg -->
+    <path d="M262 300 L300 360 L296 424"/>
+    <!-- front arm -->
+    <path d="M300 214 L250 236 L214 210"/>
+  </g>
+  <circle cx="316" cy="176" r="30" fill="#1f242c"/>
+  <!-- headband -->
+  <path d="M292 168 A30 30 0 0 1 340 168" fill="none" stroke="#ff4d5e" stroke-width="12" stroke-linecap="round"/>
+  <!-- speed lines -->
+  <g stroke="#ffffffcc" stroke-width="12" stroke-linecap="round">
+    <line x1="120" y1="230" x2="180" y2="230"/>
+    <line x1="96" y1="270" x2="170" y2="270"/>
+  </g>
+</svg>

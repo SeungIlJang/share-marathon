@@ -1,0 +1,13 @@
+{
+  "name": "모두의 마라톤",
+  "short_name": "마라톤",
+  "description": "박자에 맞춰 달리는 리듬 마라톤 게임",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "portrait",
+  "background_color": "#eaf6ff",
+  "theme_color": "#8fd0ff",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
