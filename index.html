@@ -293,7 +293,7 @@
     const beatMs=water?620:60000/curTarget;
     if(!beatAt)beatAt=now()+beatMs;
     if(now()>=beatAt){
-      if(water){ padL.classList.add("beat");padR.classList.add("beat"); setTimeout(()=>{padL.classList.remove("beat");padR.classList.remove("beat");},170); tick(); drinkOpenUntil=now()+240; }
+      if(water){ padL.classList.add("beat");padR.classList.add("beat"); setTimeout(()=>{padL.classList.remove("beat");padR.classList.remove("beat");},220); tick(); drinkOpenUntil=now()+340; }
       else beatPulse();
       beatAt+=beatMs; if(now()-beatAt>beatMs)beatAt=now()+beatMs;
     }
@@ -451,6 +451,12 @@
       if(curSeg.type==='up'){ ctx.font="24px sans-serif"; ctx.fillStyle="#7a4a1a"; ctx.fillText("⛰️ 오르막",12,groundY-22); }
       else if(curSeg.type==='down'){ ctx.font="24px sans-serif"; ctx.fillStyle="#1a5a7a"; ctx.fillText("⬇️ 내리막",12,groundY-22); }
       else if(curSeg.type==='water'){ ctx.font="bold 16px sans-serif"; ctx.fillStyle="#1f7ac0"; ctx.fillText("💧 급수대 — 회복 중",12,groundY-22); }
+    }
+    // 급수대 물마시기 안내(크게, 중앙)
+    if(running&&curSeg&&curSeg.type==='water'){
+      const open=now()<=drinkOpenUntil; ctx.textAlign="center";
+      ctx.font="900 30px sans-serif"; ctx.fillStyle=open?"#1f9ae0":"#9fb3c4";
+      ctx.fillText(open?"💧 지금! 탭!":"💧 박자 기다려요…",W/2,H*0.42);
     }
     // 라이벌 화면 밖 표시(가장자리 화살표)
     if(running){ ctx.fillStyle="#ff6f9c"; ctx.font="bold 13px sans-serif";
