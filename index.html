@@ -228,11 +228,12 @@
     if(!running)return; const t=now(); lastTapT=t;
     // 급수대: 타이밍 맞춰 물 마시기 (발 구분 없이, 열린 창에 탭)
     if(curSeg&&curSeg.type==='water'){
+      // 급수대: 그냥 탭하면 무조건 물 마심(+6), 박자에 맞으면 보너스(+12)
       flash(side==="L"?padL:padR,"hit");
-      if(now()<=drinkOpenUntil){ gly=Math.min(100,gly+10); coins++; runCoins++; saveCoins(); drinkOpenUntil=0;
-        judge={txt:"🥤 꿀꺽!",col:"#3fca6b",t:now()};
-        for(let i=0;i<10;i++)sparks.push({x:W*0.28+(Math.random()*40-20),y:H*0.52-72,vx:Math.random()*5-2.5,vy:-(Math.random()*3+1),life:1,water:1}); }
-      else { gly=Math.min(100,gly+2); judge={txt:"흘림!",col:"#8496a8",t:now()}; }
+      const open=now()<=drinkOpenUntil; const amt=open?12:6;
+      gly=Math.min(100,gly+amt); coins++; runCoins++; saveCoins(); if(open)drinkOpenUntil=0;
+      judge={txt:open?"🥤 꿀꺽! +12":"💧 한 모금 +6",col:open?"#3fca6b":"#5bbdff",t:now()};
+      for(let i=0;i<(open?11:5);i++)sparks.push({x:W*0.28+(Math.random()*40-20),y:H*0.52-72,vx:Math.random()*5-2.5,vy:-(Math.random()*3+1),life:1,water:1});
       return;
     }
     if(side===lastSide){formBreaks++;combo=0;flash(side==="L"?padL:padR,"bad");taps=[];setCoach("같은 발! 번갈아요",'var(--bad)');return;}
@@ -307,7 +308,7 @@
       speed=TGT_SPEED*0.5;
       dist+=speed*dtS*SCALE; raceT+=dtS*SCALE; scroll+=speed*dtS*SCROLL_K;
       gait+=(150/60)*Math.PI*dtS; bob*=Math.pow(0.004,dtS); critT=0;
-      if(now()>coachUntil) setCoach("💧 박자 맞춰 물 마시기! (탭)",'var(--accent)');
+      if(now()>coachUntil) setCoach("💧 L·R 아무거나 탭! → 물 마시기 (박자 맞추면 보너스)",'var(--accent)');
       if(dist>=TARGET_M){dist=TARGET_M;finish();}
       return;
     }
@@ -455,8 +456,8 @@
     // 급수대 물마시기 안내(크게, 중앙)
     if(running&&curSeg&&curSeg.type==='water'){
       const open=now()<=drinkOpenUntil; ctx.textAlign="center";
-      ctx.font="900 30px sans-serif"; ctx.fillStyle=open?"#1f9ae0":"#9fb3c4";
-      ctx.fillText(open?"💧 지금! 탭!":"💧 박자 기다려요…",W/2,H*0.42);
+      ctx.font="900 28px sans-serif"; ctx.fillStyle=open?"#1f9ae0":"#4aa3ff";
+      ctx.fillText(open?"💧 지금! 꿀꺽 (보너스)":"💧 탭! 탭! 물 마시기",W/2,H*0.42);
     }
     // 라이벌 화면 밖 표시(가장자리 화살표)
     if(running){ ctx.fillStyle="#ff6f9c"; ctx.font="bold 13px sans-serif";
