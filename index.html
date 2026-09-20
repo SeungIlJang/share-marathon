@@ -126,9 +126,17 @@
   <div class="delta" id="finDelta"></div>
   <p id="finStats"></p>
   <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
+    <button class="btn" id="reviveBtn" style="display:none;background:linear-gradient(135deg,#4aa3ff,#2b7ae0);color:#fff">📺 부활</button>
+    <button class="btn" id="dblBtn" style="display:none;background:linear-gradient(135deg,#3fca6b,#2a9d55);color:#fff">📺 코인 2배</button>
     <button class="btn" id="againBtn">다시 달리기</button>
     <button class="btn" id="lbBtn" style="background:linear-gradient(135deg,#ffd23f,#ff9f1c);color:#5a3a00">🏆 순위표</button>
   </div>
+</div>
+
+<div class="overlay" id="adOverlay" style="display:none;background:#000000e0">
+  <div style="font-size:44px">📺</div>
+  <h1 style="color:#fff">광고 재생 중…</h1>
+  <p style="color:#cfd8e3" id="adMsg">샘플 광고 (실제 앱에선 AdMob 리워드 광고)</p>
 </div>
 
 <div class="overlay" id="lbScreen" style="display:none">
@@ -165,6 +173,7 @@
   let combo=0, maxCombo=0, score=0, nPerfect=0, nGood=0, nMiss=0, judge=null, sparks=[]; // 판정·콤보·점수
   let rivalDist=0, rivalAhead=true;                        // 라이벌(고스트) 경주
   let shake=0;                                             // 화면 흔들림(콤보·스퍼트·위기)
+  let runCoins=0, revived=false;                           // 이번 판 적립 코인 / 광고 부활 사용 여부
   let coins=parseInt(localStorage.getItem('marathon_coins')||'0'); // 코인(파워젤 구매용, 영구 저장)
   let drinkOpenUntil=0, gelCdUntil=0;                      // 급수대 물마시기 창 / 젤 쿨다운
   const GEL_COST=25, GEL_HEAL=35;
@@ -198,8 +207,8 @@
     if(!curSeg||curSeg.type==='water')return;
     const bm=60000/curTarget, err=Math.min(Math.abs(t-(beatAt-bm)),Math.abs(beatAt-t));
     let kind,col,pts;
-    if(err<bm*0.16){kind="PERFECT!";col="#3fca6b";pts=100;nPerfect++;gly=Math.min(100,gly+0.8);coins+=2;}
-    else if(err<bm*0.34){kind="GOOD";col="#4aa3ff";pts=55;nGood++;coins+=1;}
+    if(err<bm*0.16){kind="PERFECT!";col="#3fca6b";pts=100;nPerfect++;gly=Math.min(100,gly+0.8);coins+=2;runCoins+=2;}
+    else if(err<bm*0.34){kind="GOOD";col="#4aa3ff";pts=55;nGood++;coins+=1;runCoins+=1;}
     else {kind="OFF";col="#8496a8";pts=0;nMiss++;combo=0;}
     if(pts>0){combo++;maxCombo=Math.max(maxCombo,combo);score+=pts+combo*5;saveCoins();}
     if(pts>0&&combo>0&&combo%10===0){ shake=9; judge={txt:"🔥 "+combo+" COMBO!",col:"#ff6f9c",t:now()}; }
@@ -211,7 +220,7 @@
     // 급수대: 타이밍 맞춰 물 마시기 (발 구분 없이, 열린 창에 탭)
     if(curSeg&&curSeg.type==='water'){
       flash(side==="L"?padL:padR,"hit");
-      if(now()<=drinkOpenUntil){ gly=Math.min(100,gly+10); coins++; saveCoins(); drinkOpenUntil=0;
+      if(now()<=drinkOpenUntil){ gly=Math.min(100,gly+10); coins++; runCoins++; saveCoins(); drinkOpenUntil=0;
         judge={txt:"🥤 꿀꺽!",col:"#3fca6b",t:now()};
         for(let i=0;i<10;i++)sparks.push({x:W*0.28+(Math.random()*40-20),y:H*0.52-72,vx:Math.random()*5-2.5,vy:-(Math.random()*3+1),life:1,water:1}); }
       else { gly=Math.min(100,gly+2); judge={txt:"흘림!",col:"#8496a8",t:now()}; }
@@ -486,7 +495,7 @@
   function start(){
     running=true; taps=[]; lastSide=null; lastTapT=now();
     dist=0;raceT=0;gly=100;eff=1;cad=0;cv=0;speed=0;formBreaks=0;legPhase=0;legTarget=0;bob=0;scroll=0;critT=0;gait=0;
-    combo=0;maxCombo=0;score=0;nPerfect=0;nGood=0;nMiss=0;judge=null;sparks=[];rivalDist=0;rivalAhead=true;shake=0;
+    combo=0;maxCombo=0;score=0;nPerfect=0;nGood=0;nMiss=0;judge=null;sparks=[];rivalDist=0;rivalAhead=true;shake=0;runCoins=0;revived=false;
     buildCourse();                    // 지형·급수대·스플릿 코스 생성
     setNext("L"); setCoach("박자에 맞춰 왼발(L)부터",'var(--ok)');
     beatAt=now()+60000/TARGET_CAD;   // 메트로놈 시작
@@ -518,6 +527,17 @@
   $("lbBtn").addEventListener("click",()=>openLB(curDist));
   $("lbBtnStart").addEventListener("click",()=>openLB(curDist));
 
+  // ===== 리워드 광고 (지금은 샘플; 앱 패키징 시 AdMob 리워드로 교체) =====
+  function showRewardedAd(onReward){
+    const ov=$("adOverlay"); ov.style.display="flex"; let n=3; $("adMsg").textContent="샘플 광고… "+n+"초 (실제 앱: AdMob)";
+    const iv=setInterval(()=>{ n--; if(n>0){ $("adMsg").textContent="샘플 광고… "+n+"초 (실제 앱: AdMob)"; }
+      else { clearInterval(iv); ov.style.display="none"; if(onReward)onReward(); } },1000);
+  }
+  function revive(){ revived=true; $("finScreen").style.display="none"; running=true; gly=55; critT=0; combo=0;
+    lastTapT=now(); beatAt=now()+60000/curTarget; lastFrame=now(); setCoach("💪 부활! 끝까지 달려요!",'var(--ok)'); requestAnimationFrame(loop); }
+  $("reviveBtn").addEventListener("click",()=>{ $("reviveBtn").style.display="none"; showRewardedAd(revive); });
+  $("dblBtn").addEventListener("click",()=>{ $("dblBtn").style.display="none"; showRewardedAd(()=>{ coins+=runCoins; saveCoins(); alert("🪙 코인 2배 보너스 +"+runCoins+"  (보유 "+coins+")"); }); });
+
   function finish(){
     running=false; const t=raceT, key="marathon_pb_"+curDist; const pb=parseFloat(localStorage.getItem(key)||"0");
     let dtx="",title="🎉 "+curDist+" 완주!";
@@ -546,6 +566,7 @@
     const i=ORDER.indexOf(curDist);
     if(i>=0 && i+1<ORDER.length){ if(i>=unlock()){ localStorage.setItem('marathon_unlock',String(i+1)); stats+="<br>🔓 <b>"+ORDER[i+1]+"</b> 해금!"; } refreshDistButtons(); }
     $("finStats").innerHTML=stats;
+    $("dblBtn").style.display=(runCoins>0)?"inline-block":"none"; $("reviveBtn").style.display="none";
     $("finScreen").style.display="flex"; requestAnimationFrame(idleLoop);
   }
   function dnf(){
@@ -554,7 +575,8 @@
     $("finTime").textContent=(dist/1000).toFixed(2)+"km";
     $("finDelta").style.color="var(--bad)";
     $("finDelta").textContent="체력 소진으로 중도 포기";
-    $("finStats").innerHTML="너무 빠른 페이스가 원인이에요.<br>지속가능 케이던스(~185spm)로 페이스를 지키면 완주할 수 있어요.";
+    $("finStats").innerHTML="너무 빠른 페이스가 원인이에요.<br>지속가능 케이던스(~185spm)로 페이스를 지키면 완주할 수 있어요."+(revived?"":"<br>📺 광고 보고 <b>부활</b>해서 이어달릴 수 있어요!");
+    $("reviveBtn").style.display=revived?"none":"inline-block"; $("dblBtn").style.display="none";
     $("finScreen").style.display="flex"; requestAnimationFrame(idleLoop);
   }
   $("sndBtn").addEventListener("click",e=>{ e.stopPropagation(); sndOn=!sndOn; $("sndBtn").textContent=sndOn?"🔊":"🔇";
