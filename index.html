@@ -363,13 +363,15 @@
   function drawRunner(x,gy,s,p,bobv,fast,col){
     const ghost=!!col;
     const TAU=Math.PI*2;
-    const bounce=(Math.abs(Math.sin(p))*2.6 + bobv*1.2);
+    const phase=p;
+    const stride=Math.cos(phase);
+    const bounce=(Math.abs(Math.sin(phase))*1.9 + bobv*0.9);
 
-    // ── 캐릭터 그림자 ──
+    // ground shadow
     ctx.save();
-    ctx.fillStyle=ghost?(col+"33"):"#00000022";
+    ctx.fillStyle=ghost?(col+"2a"):"#00000024";
     ctx.beginPath();
-    ctx.ellipse(x+2*s,gy+3,25*s,5.5*s,0,0,TAU);
+    ctx.ellipse(x+3*s,gy+4,27*s,5.8*s,0,0,TAU);
     ctx.fill();
     ctx.restore();
 
@@ -379,22 +381,21 @@
     ctx.lineCap="round";
     ctx.lineJoin="round";
 
-    // ── 팔레트: 레퍼런스 이미지의 밝고 귀여운 SD 러너 톤 ──
-    const SKIN   = ghost?col:"#ffd6ad";
-    const SKIN_D = ghost?col:"#eab98d";
-    const HAIR   = ghost?col:"#5a3428";
-    const HAIR_H = ghost?col:"#704437";
-    const RED    = ghost?col:"#ff5147";
-    const RED_D  = ghost?col:"#dd3e3c";
-    const WHITE  = ghost?col:"#fffaf4";
-    const SHORTS = ghost?col:"#30343d";
-    const SHORTS_D=ghost?col:"#232731";
-    const SHOE   = ghost?col:"#ed3f43";
-    const SHOE_D = ghost?col:"#c92f35";
-    const SOLE   = ghost?col:"#fffdf8";
-    const OUT    = ghost?col:"#63392f";
+    const SKIN=ghost?col:"#ffd2a6";
+    const SKIN_D=ghost?col:"#e9ad7c";
+    const HAIR=ghost?col:"#4c2b24";
+    const HAIR_H=ghost?col:"#6e4134";
+    const RED=ghost?col:"#ff4b3f";
+    const RED_D=ghost?col:"#d93835";
+    const WHITE=ghost?col:"#fffdf9";
+    const SHORTS=ghost?col:"#2e3036";
+    const SHORTS_D=ghost?col:"#22242a";
+    const SHOE=ghost?col:"#ef3d42";
+    const SHOE_D=ghost?col:"#c92f34";
+    const SOLE=ghost?col:"#f7f7f7";
+    const OUT=ghost?col:"#5b332c";
 
-    function paintSeg(a,b,fill,w,outline=1.8){
+    function capsule(a,b,w,fill,outline=1.6){
       if(!ghost && outline>0){
         ctx.strokeStyle=OUT;
         ctx.lineWidth=w+outline*2;
@@ -405,27 +406,18 @@
       ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
     }
 
-    function fillCircle(x0,y0,r,fill,stroke=true,lw=1.7){
+    function circle(px,py,r,fill,stroke=true,lw=1.5){
       ctx.fillStyle=fill;
-      ctx.beginPath(); ctx.arc(x0,y0,r,0,TAU); ctx.fill();
-      if(stroke&&!ghost){
-        ctx.strokeStyle=OUT; ctx.lineWidth=lw; ctx.stroke();
-      }
+      ctx.beginPath(); ctx.arc(px,py,r,0,TAU); ctx.fill();
+      if(stroke&&!ghost){ctx.strokeStyle=OUT;ctx.lineWidth=lw;ctx.stroke();}
     }
 
-    function fillEllipse(x0,y0,rx,ry,rot,fill,stroke=true,lw=1.7){
+    function ellipse(px,py,rx,ry,rot,fill,stroke=true,lw=1.5){
       ctx.fillStyle=fill;
-      ctx.beginPath(); ctx.ellipse(x0,y0,rx,ry,rot,0,TAU); ctx.fill();
-      if(stroke&&!ghost){
-        ctx.strokeStyle=OUT; ctx.lineWidth=lw; ctx.stroke();
-      }
+      ctx.beginPath(); ctx.ellipse(px,py,rx,ry,rot,0,TAU); ctx.fill();
+      if(stroke&&!ghost){ctx.strokeStyle=OUT;ctx.lineWidth=lw;ctx.stroke();}
     }
 
-    function mix(a,b,t){
-      return {x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t};
-    }
-
-    // 2-bone IK. 발/손 위치를 먼저 정해 실루엣이 항상 달리는 자세로 읽히게 함.
     function solve2(root,target,l1,l2,bend){
       let dx=target.x-root.x, dy=target.y-root.y;
       let d=Math.hypot(dx,dy);
@@ -434,211 +426,252 @@
       const a=(l1*l1-l2*l2+d*d)/(2*d);
       const h=Math.sqrt(Math.max(0,l1*l1-a*a));
       const mx=root.x+ux*a, my=root.y+uy*a;
-      return {x:mx+(-uy)*h*bend, y:my+ux*h*bend};
+      return {x:mx+(-uy)*h*bend,y:my+ux*h*bend};
     }
 
-    // ── 강한 치비 비율: 큰 머리 + 아주 짧은 몸 + 큰 신발 ──
-    const hip={x:-2,y:-31};
-    const sh ={x:5,y:-52};
-    const hd ={x:9,y:-80};
+    function mix(a,b,t){return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};}
+
+    // Chibi proportions matching Image A: large head, compact torso, short rounded limbs.
+    const hip={x:-1,y:-31};
+    const sh={x:7,y:-54};
+    const neck={x:10,y:-61};
+    const head={x:12,y:-83};
 
     function drawLeg(q,front){
+      const legStride=Math.cos(q);
       const root={x:hip.x+(front?2:-2),y:hip.y+3};
-      const stride=Math.sin(q);
-      const lift=Math.max(0,Math.cos(q))*11;
-      const ank={x:root.x+stride*20, y:-1-lift};
-      const knee=solve2(root,ank,18,18,-1);
+      const lift=Math.max(0,-legStride)*9 + Math.max(0,Math.sin(q))*3;
+      const ankle={
+        x:root.x+legStride*23,
+        y:-2-lift
+      };
+      const knee=solve2(root,ankle,18.5,18.5,legStride>=0?-1:1);
       const skin=front?SKIN:SKIN_D;
 
-      // 다리는 반바지 아래부터 피부색이 충분히 보여야 함.
-      paintSeg(root,knee,skin,10.5,1.5);
-      paintSeg(knee,ank,skin,9.5,1.4);
+      // shorts upper segment only
+      const shortsEnd=mix(root,knee,0.38);
+      capsule(root,shortsEnd,14.5,front?SHORTS:SHORTS_D,1.4);
+      capsule(shortsEnd,knee,10.5,skin,1.4);
+      capsule(knee,ankle,9.2,skin,1.3);
 
-      // 흰 양말
-      const sock=mix(knee,ank,0.67);
-      paintSeg(sock,ank,WHITE,8.2,1.2);
+      // white sock
+      const sock=mix(knee,ankle,0.72);
+      capsule(sock,ankle,8.6,WHITE,1.1);
 
-      // 큰 러닝화: 발 방향은 항상 진행방향(오른쪽), 들린 발만 살짝 위로 기울임.
-      const tilt=lift>1?-0.18:0.05;
-      const heel={x:ank.x-3,y:ank.y+1};
-      const toe ={x:ank.x+12,y:ank.y+2+tilt*5};
+      // oversized red running shoe, always pointing forward like the reference
+      const rise=lift>2?-0.18:0.04;
+      const heel={x:ankle.x-3,y:ankle.y+1};
+      const toe={x:ankle.x+13,y:ankle.y+2+rise*4};
 
       if(!ghost){
-        ctx.strokeStyle=OUT; ctx.lineWidth=12.5;
-        ctx.beginPath(); ctx.moveTo(heel.x,heel.y); ctx.lineTo(toe.x,toe.y); ctx.stroke();
+        ctx.strokeStyle=OUT;ctx.lineWidth=13;
+        ctx.beginPath();ctx.moveTo(heel.x,heel.y);ctx.lineTo(toe.x,toe.y);ctx.stroke();
       }
-      ctx.strokeStyle=front?SHOE:SHOE_D; ctx.lineWidth=10;
-      ctx.beginPath(); ctx.moveTo(heel.x,heel.y); ctx.lineTo(toe.x,toe.y); ctx.stroke();
-      fillEllipse(toe.x+1,toe.y,6.5,4.6,tilt,front?SHOE:SHOE_D,!ghost,1.4);
+      ctx.strokeStyle=front?SHOE:SHOE_D;ctx.lineWidth=10.5;
+      ctx.beginPath();ctx.moveTo(heel.x,heel.y);ctx.lineTo(toe.x,toe.y);ctx.stroke();
+      ellipse(toe.x+1,toe.y,7.1,4.8,rise,front?SHOE:SHOE_D,!ghost,1.2);
 
-      // 흰 밑창
       if(!ghost){
-        ctx.strokeStyle=SOLE; ctx.lineWidth=2.8;
+        ctx.strokeStyle=SOLE;ctx.lineWidth=3;
         ctx.beginPath();
-        ctx.moveTo(heel.x-1,heel.y+4.1);
-        ctx.quadraticCurveTo((heel.x+toe.x)/2,toe.y+5.2,toe.x+5,toe.y+3.7);
+        ctx.moveTo(heel.x-1,heel.y+4);
+        ctx.quadraticCurveTo(toe.x-2,toe.y+5,toe.x+5,toe.y+3.7);
         ctx.stroke();
+
+        // shoe highlight / lace marks
+        ctx.strokeStyle="#ffffffdd";ctx.lineWidth=1.8;
+        ctx.beginPath();ctx.moveTo(toe.x-4,toe.y-2);ctx.lineTo(toe.x+1,toe.y-1);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(toe.x-2,toe.y+0.3);ctx.lineTo(toe.x+2.5,toe.y+1);ctx.stroke();
       }
     }
 
     function drawArm(q,front){
-      const root={x:sh.x+(front?1:-1),y:sh.y+1};
-      const swing=Math.sin(q);
-      const hand={x:root.x+swing*18, y:root.y+13+Math.max(0,-Math.cos(q))*3};
-      const elbow=solve2(root,hand,12.5,12.5,hand.x>=root.x?1:-1);
+      const armSwing=-Math.cos(q);
+      const root={x:sh.x+(front?1.5:-1.5),y:sh.y+2};
+      const hand={
+        x:root.x+armSwing*18,
+        y:root.y+12-(Math.abs(armSwing)*2)
+      };
+      const elbow=solve2(root,hand,12.5,12.5,armSwing>=0?1:-1);
       const skin=front?SKIN:SKIN_D;
-      const sleeve=front?RED:RED_D;
 
-      // 짧은 반팔: 어깨 쪽만 빨강, 팔의 대부분은 피부색.
-      const sleeveEnd=mix(root,elbow,0.43);
-      paintSeg(root,sleeveEnd,sleeve,12.5,1.5);
-      paintSeg(sleeveEnd,elbow,skin,8.7,1.3);
-      paintSeg(elbow,hand,skin,8.3,1.3);
-      fillCircle(hand.x,hand.y,4.7,skin,true,1.3);
+      // red raglan sleeve at shoulder
+      const sleeveEnd=mix(root,elbow,0.46);
+      capsule(root,sleeveEnd,12.5,front?RED:RED_D,1.4);
+      capsule(sleeveEnd,elbow,8.6,skin,1.2);
+      capsule(elbow,hand,8.2,skin,1.2);
+      circle(hand.x,hand.y,4.8,skin,true,1.2);
     }
 
-    // 1) 뒤쪽 팔다리 — 몸 뒤로 보내 깊이감 확보
-    drawArm(p,false);
-    drawLeg(p+Math.PI,false);
+    // rear limbs
+    drawArm(phase,false);
+    drawLeg(phase+Math.PI,false);
 
-    // 2) 짧고 둥근 흰 러닝 셔츠
+    // torso: tapered white shirt with red collar, more like an illustrated shirt than a stick
+    ctx.beginPath();
+    ctx.moveTo(sh.x-8,sh.y+1);
+    ctx.quadraticCurveTo(sh.x-10,sh.y+10,hip.x-8,hip.y+3);
+    ctx.quadraticCurveTo(hip.x,hip.y+8,hip.x+9,hip.y+3);
+    ctx.quadraticCurveTo(sh.x+11,sh.y+10,sh.x+9,sh.y+1);
+    ctx.closePath();
+    if(!ghost){ctx.fillStyle=OUT;ctx.fill();}
+    ctx.save();
+    ctx.translate(0,0);
+    ctx.beginPath();
+    ctx.moveTo(sh.x-6.5,sh.y+2);
+    ctx.quadraticCurveTo(sh.x-8,sh.y+10,hip.x-6.8,hip.y+2.5);
+    ctx.quadraticCurveTo(hip.x,hip.y+6,hip.x+7.7,hip.y+2.5);
+    ctx.quadraticCurveTo(sh.x+9,sh.y+10,sh.x+7.5,sh.y+2);
+    ctx.closePath();
+    ctx.fillStyle=WHITE;ctx.fill();
+    ctx.restore();
+
+    // red collar
     if(!ghost){
-      ctx.strokeStyle=OUT; ctx.lineWidth=24.5;
-      ctx.beginPath(); ctx.moveTo(hip.x,hip.y-1); ctx.lineTo(sh.x,sh.y+1); ctx.stroke();
-    }
-    ctx.strokeStyle=WHITE; ctx.lineWidth=21;
-    ctx.beginPath(); ctx.moveTo(hip.x,hip.y-1); ctx.lineTo(sh.x,sh.y+1); ctx.stroke();
+      ctx.strokeStyle=RED;ctx.lineWidth=3.5;
+      ctx.beginPath();ctx.arc(sh.x+1,sh.y+2,7.2,0.2,Math.PI-0.2);ctx.stroke();
 
-    // 빨간 목둘레와 작은 가슴 포인트
-    if(!ghost){
-      ctx.strokeStyle=RED; ctx.lineWidth=3.2;
-      ctx.beginPath(); ctx.arc(sh.x+1,sh.y+2,7,0.2,Math.PI-0.2); ctx.stroke();
-
+      // chest logo
       ctx.fillStyle=RED;
       ctx.beginPath();
-      ctx.moveTo(4,-43); ctx.lineTo(9,-38); ctx.lineTo(4,-39.5); ctx.lineTo(0,-36);
-      ctx.lineTo(2,-42); ctx.closePath(); ctx.fill();
+      ctx.moveTo(4,-44);ctx.lineTo(10,-39);ctx.lineTo(6,-39.5);
+      ctx.lineTo(3,-36);ctx.lineTo(0,-41);ctx.closePath();ctx.fill();
+
+      // soft shirt shading
+      ctx.fillStyle="#e9eef7";
+      ctx.beginPath();
+      ctx.moveTo(-2,-37);ctx.lineTo(3,-34);ctx.lineTo(0,-31);ctx.closePath();ctx.fill();
     }
 
-    // 3) 반바지는 허벅지를 덮는 거대한 검정 덩어리가 아니라 골반에만 작게
-    fillEllipse(hip.x+1,hip.y+2,11.5,7.5,0.12,SHORTS,true,1.5);
+    // compact shorts block
+    ellipse(hip.x+1,hip.y+3,11.8,7.8,0.1,SHORTS,true,1.4);
     if(!ghost){
-      ctx.strokeStyle="#ffffff66"; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.moveTo(hip.x+3,hip.y-4); ctx.lineTo(hip.x+7,hip.y+4); ctx.stroke();
+      ctx.strokeStyle="#ffffffd9";ctx.lineWidth=2.2;
+      ctx.beginPath();ctx.moveTo(hip.x+4,hip.y-3);ctx.lineTo(hip.x+7,hip.y+5);ctx.stroke();
     }
 
-    // 4) 목
-    paintSeg({x:sh.x+1,y:sh.y-1},{x:hd.x-2,y:hd.y+17},SKIN,8.5,1.3);
+    // neck
+    capsule({x:sh.x+1,y:sh.y-1},{x:neck.x,y:neck.y+2},8.2,SKIN,1.2);
 
-    // 5) 머리: 뒤 머리 볼륨 → 얼굴 → 귀 → 앞머리 → 헤어밴드 → 표정
-    // 뒤 머리 볼륨
-    fillCircle(hd.x-5,hd.y-4,22.5,HAIR,true,1.8);
+    // head hair mass first
+    circle(head.x-5,head.y-4,23.5,HAIR,true,1.8);
 
-    // 얼굴을 완전 측면이 아닌 살짝 3/4로: 폭을 조금 넓게
-    fillEllipse(hd.x+1,hd.y+1,20.5,21.5,-0.05,SKIN,true,1.8);
-
-    // 귀
-    fillCircle(hd.x-16,hd.y+2,5.2,SKIN_D,true,1.2);
-    if(!ghost){
-      ctx.strokeStyle="#c98766"; ctx.lineWidth=1.3;
-      ctx.beginPath(); ctx.arc(hd.x-16,hd.y+2,2.4,-1.1,1.1); ctx.stroke();
-    }
-
-    // 풍성한 앞머리 4가닥 + 위쪽 포인트
+    // spiky hair silhouette like Image A
     if(!ghost){
       ctx.fillStyle=HAIR;
+      ctx.strokeStyle=OUT;ctx.lineWidth=1.7;
       ctx.beginPath();
-      ctx.moveTo(hd.x-16,hd.y-13);
-      ctx.quadraticCurveTo(hd.x-10,hd.y-25,hd.x-2,hd.y-17);
-      ctx.quadraticCurveTo(hd.x+3,hd.y-28,hd.x+9,hd.y-17);
-      ctx.quadraticCurveTo(hd.x+16,hd.y-25,hd.x+18,hd.y-12);
-      ctx.quadraticCurveTo(hd.x+9,hd.y-15,hd.x+5,hd.y-8);
-      ctx.quadraticCurveTo(hd.x-2,hd.y-15,hd.x-7,hd.y-8);
-      ctx.quadraticCurveTo(hd.x-11,hd.y-13,hd.x-16,hd.y-13);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle=OUT; ctx.lineWidth=1.6; ctx.stroke();
+      ctx.moveTo(head.x-19,head.y-11);
+      ctx.lineTo(head.x-26,head.y-17);
+      ctx.quadraticCurveTo(head.x-18,head.y-19,head.x-12,head.y-16);
+      ctx.lineTo(head.x-17,head.y-27);
+      ctx.quadraticCurveTo(head.x-8,head.y-24,head.x-4,head.y-19);
+      ctx.lineTo(head.x+1,head.y-31);
+      ctx.quadraticCurveTo(head.x+7,head.y-25,head.x+8,head.y-18);
+      ctx.lineTo(head.x+15,head.y-28);
+      ctx.quadraticCurveTo(head.x+20,head.y-21,head.x+17,head.y-14);
+      ctx.lineTo(head.x+24,head.y-20);
+      ctx.quadraticCurveTo(head.x+26,head.y-11,head.x+18,head.y-7);
+      ctx.quadraticCurveTo(head.x+5,head.y-15,head.x-4,head.y-8);
+      ctx.quadraticCurveTo(head.x-10,head.y-14,head.x-19,head.y-11);
+      ctx.closePath();ctx.fill();ctx.stroke();
 
-      // 머리 하이라이트
-      ctx.strokeStyle=HAIR_H; ctx.lineWidth=2.1;
-      ctx.beginPath(); ctx.arc(hd.x-3,hd.y-8,13,-2.3,-1.4); ctx.stroke();
+      ctx.fillStyle=HAIR_H;
+      ctx.beginPath();
+      ctx.ellipse(head.x-7,head.y-14,7,2.2,-0.35,0,TAU);ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(head.x+6,head.y-19,5.5,1.8,-0.55,0,TAU);ctx.fill();
     }
 
-    // 헤어밴드: 얇은 띠 + 뒤로 날리는 2개 리본
+    // face oval on top of back hair
+    ellipse(head.x+2,head.y+1,20.8,21.3,-0.04,SKIN,true,1.7);
+
+    // ear
+    circle(head.x-16.5,head.y+2.5,5.3,SKIN_D,true,1.1);
+    if(!ghost){
+      ctx.strokeStyle="#c98261";ctx.lineWidth=1.2;
+      ctx.beginPath();ctx.arc(head.x-16.5,head.y+2.5,2.4,-1.1,1.1);ctx.stroke();
+    }
+
+    // front hair strands over forehead
+    if(!ghost){
+      ctx.fillStyle=HAIR;
+      const tuft=(cx,cy,rx,ry,rot)=>{
+        ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,rot,0,TAU);ctx.fill();
+      };
+      tuft(head.x-9,head.y-14,8,5,-0.25);
+      tuft(head.x,head.y-17,8.5,5.4,-0.45);
+      tuft(head.x+9,head.y-15,7.2,4.7,-0.6);
+    }
+
+    // headband + two long flowing tails
     ctx.save();
-    ctx.translate(hd.x,hd.y);
-    ctx.rotate(-0.06);
-
+    ctx.translate(head.x,head.y);
     if(!ghost){
-      ctx.strokeStyle=OUT; ctx.lineWidth=7.8;
-      ctx.beginPath(); ctx.moveTo(-15,-11); ctx.quadraticCurveTo(0,-17,16,-10); ctx.stroke();
+      ctx.strokeStyle=OUT;ctx.lineWidth=8.5;
+      ctx.beginPath();ctx.moveTo(-17,-12);ctx.quadraticCurveTo(0,-18,18,-11);ctx.stroke();
     }
-    ctx.strokeStyle=RED; ctx.lineWidth=5.6;
-    ctx.beginPath(); ctx.moveTo(-15,-11); ctx.quadraticCurveTo(0,-17,16,-10); ctx.stroke();
+    ctx.strokeStyle=RED;ctx.lineWidth=6.1;
+    ctx.beginPath();ctx.moveTo(-17,-12);ctx.quadraticCurveTo(0,-18,18,-11);ctx.stroke();
 
-    const flap=Math.sin(p*2)*2.5;
+    const flap=Math.sin(phase*2)*2.2;
     if(!ghost){
-      ctx.strokeStyle=OUT; ctx.lineWidth=6.4;
-      ctx.beginPath(); ctx.moveTo(-14,-10); ctx.quadraticCurveTo(-29,-11+flap,-39,-5+flap); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-14,-7);  ctx.quadraticCurveTo(-28,-2+flap,-37,4+flap); ctx.stroke();
+      ctx.strokeStyle=OUT;ctx.lineWidth=7;
+      ctx.beginPath();ctx.moveTo(-16,-10);ctx.quadraticCurveTo(-31,-12+flap,-44,-4+flap);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(-16,-6);ctx.quadraticCurveTo(-31,-1+flap,-43,7+flap);ctx.stroke();
     }
-    ctx.strokeStyle=RED; ctx.lineWidth=4.3;
-    ctx.beginPath(); ctx.moveTo(-14,-10); ctx.quadraticCurveTo(-29,-11+flap,-39,-5+flap); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-14,-7);  ctx.quadraticCurveTo(-28,-2+flap,-37,4+flap); ctx.stroke();
+    ctx.strokeStyle=RED;ctx.lineWidth=4.8;
+    ctx.beginPath();ctx.moveTo(-16,-10);ctx.quadraticCurveTo(-31,-12+flap,-44,-4+flap);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-16,-6);ctx.quadraticCurveTo(-31,-1+flap,-43,7+flap);ctx.stroke();
 
     if(!ghost){
-      // 3/4 얼굴: 큰 주 눈 + 작은 보조 눈
+      // two large expressive eyes
       ctx.fillStyle="#ffffff";
-      ctx.beginPath(); ctx.ellipse(10,-1,6.2,7.2,0,0,TAU); ctx.fill();
-      ctx.strokeStyle=OUT; ctx.lineWidth=1.2; ctx.stroke();
+      ctx.beginPath();ctx.ellipse(8,-1,5.6,7.3,0,0,TAU);ctx.fill();
+      ctx.strokeStyle=OUT;ctx.lineWidth=1.2;ctx.stroke();
+      ctx.beginPath();ctx.ellipse(0,-1.5,4.5,6.4,0,0,TAU);ctx.fill();
+      ctx.strokeStyle=OUT;ctx.lineWidth=1.1;ctx.stroke();
 
-      ctx.fillStyle="#ffffff";
-      ctx.beginPath(); ctx.ellipse(2,-2,3.6,5.1,0,0,TAU); ctx.fill();
-      ctx.strokeStyle=OUT; ctx.lineWidth=1; ctx.stroke();
-
-      ctx.fillStyle="#392a25";
-      ctx.beginPath(); ctx.ellipse(11,-0.5,3.4,4.5,0,0,TAU); ctx.fill();
-      ctx.beginPath(); ctx.ellipse(2.8,-1.5,2.1,3.1,0,0,TAU); ctx.fill();
+      ctx.fillStyle="#3a2823";
+      ctx.beginPath();ctx.ellipse(9,-0.2,3.3,4.6,0,0,TAU);ctx.fill();
+      ctx.beginPath();ctx.ellipse(1,-0.8,2.6,3.9,0,0,TAU);ctx.fill();
 
       ctx.fillStyle="#ffffff";
-      ctx.beginPath(); ctx.arc(12.2,-2.1,1.2,0,TAU); ctx.fill();
-      ctx.beginPath(); ctx.arc(3.5,-2.7,0.8,0,TAU); ctx.fill();
+      ctx.beginPath();ctx.arc(10.2,-2.1,1.1,0,TAU);ctx.fill();
+      ctx.beginPath();ctx.arc(2,-2.4,0.9,0,TAU);ctx.fill();
 
-      // 눈썹
-      ctx.strokeStyle="#4b2d25"; ctx.lineWidth=1.8;
-      ctx.beginPath(); ctx.arc(9,-9,4.5,3.55,5.75); ctx.stroke();
-      ctx.beginPath(); ctx.arc(1,-8,2.8,3.7,5.55); ctx.stroke();
+      // eyebrows
+      ctx.strokeStyle="#4a2d26";ctx.lineWidth=2.1;
+      ctx.beginPath();ctx.arc(7,-8.7,4.4,3.55,5.7);ctx.stroke();
+      ctx.beginPath();ctx.arc(-0.3,-8.4,3.3,3.7,5.5);ctx.stroke();
 
-      // 볼터치
-      ctx.fillStyle="#ff9eb2aa";
-      ctx.beginPath(); ctx.ellipse(5.5,8.2,4.2,2.7,-0.15,0,TAU); ctx.fill();
+      // cheeks
+      ctx.fillStyle="#ff9faf99";
+      ctx.beginPath();ctx.ellipse(4.2,8.1,4.2,2.7,-0.1,0,TAU);ctx.fill();
 
-      // 활짝 웃는 입
-      ctx.fillStyle="#8c3b31";
+      // open happy smile
+      ctx.fillStyle="#8e3830";
       ctx.beginPath();
-      ctx.moveTo(9,7);
-      ctx.quadraticCurveTo(15,8,16,4.5);
-      ctx.quadraticCurveTo(15,13,9,11.5);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle="#ff7f82";
-      ctx.beginPath(); ctx.ellipse(13,10,2.2,1.1,0,0,TAU); ctx.fill();
+      ctx.moveTo(8,6);
+      ctx.quadraticCurveTo(15,7,16,4.2);
+      ctx.quadraticCurveTo(15,13,8.5,11.8);
+      ctx.closePath();ctx.fill();
+      ctx.fillStyle="#ff7e82";
+      ctx.beginPath();ctx.ellipse(12.5,9.8,2.4,1.2,0,0,TAU);ctx.fill();
     }
     ctx.restore();
 
-    // 6) 앞쪽 다리·팔 — 앞 레이어가 캐릭터를 더 입체적으로 보이게 함
-    drawLeg(p,true);
-    drawArm(p+Math.PI,true);
+    // front limbs on top
+    drawLeg(phase,true);
+    drawArm(phase+Math.PI,true);
 
-    // 빠른 페이스 속도선
+    // subtle speed streaks
     if(fast){
-      ctx.strokeStyle=ghost?col:"#ffffffcc";
-      ctx.lineWidth=2.6;
+      ctx.strokeStyle=ghost?col:"#b8e0ffcc";
+      ctx.lineWidth=2.4;
       for(let i=0;i<3;i++){
-        const yy=-48+i*13;
-        ctx.beginPath();
-        ctx.moveTo(-30,yy);
-        ctx.lineTo(-46-i*6,yy);
-        ctx.stroke();
+        const yy=-52+i*12;
+        ctx.beginPath();ctx.moveTo(-30,yy);ctx.lineTo(-48-i*5,yy);ctx.stroke();
       }
     }
 
