@@ -362,18 +362,31 @@
   const _runnerImg=new Image(); _runnerImg.src='runner-sprite.png';
   const _ghostImg=new Image();  _ghostImg.src='runner-sprite-ghost.png';
   const _SP={cw:322,ch:407,start:1,run:8};   // 0번(정지포즈) 제외, 1~8 러닝 사이클
+  let _dust=[], _lastStep=-1;                 // 발 구름 먼지
   // 귀여운 치비 러너 — 파트별로 나눠 코드로 직접 그림 (스프라이트 로딩 전 폴백)
   function drawRunner(x,gy,s,p,bobv,fast,col){
     // ── 스프라이트 프레임 렌더 (준비되면 이걸로) ──
     const _img=col?_ghostImg:_runnerImg;
     if(_img.complete && _img.naturalWidth>0){
-      const _bo=Math.abs(Math.sin(p))*10 + bobv*2;                    // 러닝 바운스(스텝마다 통통)
-      const _sh=6*s*(1-Math.abs(Math.sin(p))*0.35);                    // 뜰 때 그림자 살짝 작게
+      const _ph=((p%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+      const _bo=Math.abs(Math.sin(p))*14 + bobv*2;                    // 러닝 바운스 강화(스텝마다 통통)
+      const _sh=6*s*(1-Math.abs(Math.sin(p))*0.45);                    // 뜰 때 그림자 작게(공중감)
+      // 발 구름 먼지 (플레이어만, 스텝 바뀔 때 분사)
+      if(!col){ const step=Math.floor(_ph/Math.PI);
+        if(step!==_lastStep && cad>1){ _lastStep=step; for(let i=0;i<5;i++)_dust.push({x:x-6+Math.random()*12,y:gy+2,vx:-(1.2+Math.random()*2.6),vy:-(Math.random()*1.8),r:2+Math.random()*2,life:1}); } }
+      // 그림자
       ctx.save(); ctx.fillStyle="#0000001e"; ctx.beginPath(); ctx.ellipse(x,gy+2,22*s,_sh,0,0,7); ctx.fill(); ctx.restore();
-      const _fi=_SP.start+(Math.floor(((p%(Math.PI*2)+Math.PI*2)%(Math.PI*2))/(Math.PI*2)*_SP.run)%_SP.run);
+      // 먼지(캐릭터 뒤에)
+      for(let k=_dust.length-1;k>=0;k--){ const t=_dust[k]; t.x+=t.vx; t.y+=t.vy; t.vy+=0.06; t.r+=0.35; t.life-=0.05;
+        if(t.life<=0){_dust.splice(k,1);continue;} ctx.globalAlpha=t.life*0.45; ctx.fillStyle="#d3c7ac"; ctx.beginPath(); ctx.arc(t.x,t.y,t.r,0,7); ctx.fill(); }
+      ctx.globalAlpha=1;
+      const _fi=_SP.start+(Math.floor(_ph/(Math.PI*2)*_SP.run)%_SP.run);
       const _dh=116*s, _dw=_SP.cw/_SP.ch*_dh, _top=gy-_bo*s-_dh+(6/_SP.ch*_dh);
+      // 스텝 리듬 살짝 틸트(앞뒤 흔들)
+      ctx.save(); ctx.translate(x,gy); ctx.rotate(Math.sin(p)*0.05); ctx.translate(-x,-gy);
       ctx.drawImage(_img,_fi*_SP.cw,0,_SP.cw,_SP.ch, x-_dw/2,_top,_dw,_dh);
-      if(fast){ ctx.strokeStyle=col||"#ffffffbb"; ctx.lineWidth=3; ctx.lineCap="round"; for(let i=0;i<3;i++){const yy=_top+_dh*0.42+i*13; ctx.beginPath(); ctx.moveTo(x-_dw*0.42,yy); ctx.lineTo(x-_dw*0.42-16-i*7,yy); ctx.stroke();} }
+      ctx.restore();
+      if(fast){ ctx.strokeStyle=col||"#ffffffcc"; ctx.lineWidth=3; ctx.lineCap="round"; for(let i=0;i<4;i++){const yy=_top+_dh*0.4+i*12; ctx.beginPath(); ctx.moveTo(x-_dw*0.42,yy); ctx.lineTo(x-_dw*0.42-18-i*8,yy); ctx.stroke();} }
       return;
     }
     const ghost=!!col;
