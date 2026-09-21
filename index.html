@@ -361,334 +361,91 @@
   // 스프라이트 러너 (사용자 제공 시트 → 배경제거·정렬된 9프레임 스트립). 로딩 전엔 아래 코드러너로 폴백.
   const _runnerImg=new Image(); _runnerImg.src='runner-sprite.png';
   const _ghostImg=new Image();  _ghostImg.src='runner-sprite-ghost.png';
-  const _SP={cw:324,ch:430,start:1,run:8};   // 0번(정지포즈) 제외, 1~8 러닝 사이클
+  const _SP={cw:322,ch:407,start:1,run:8};   // 0번(정지포즈) 제외, 1~8 러닝 사이클
   // 귀여운 치비 러너 — 파트별로 나눠 코드로 직접 그림 (스프라이트 로딩 전 폴백)
   function drawRunner(x,gy,s,p,bobv,fast,col){
     // ── 스프라이트 프레임 렌더 (준비되면 이걸로) ──
     const _img=col?_ghostImg:_runnerImg;
     if(_img.complete && _img.naturalWidth>0){
-      const _bo=Math.abs(Math.sin(p))*4 + bobv*2;
-      ctx.save(); ctx.fillStyle="#00000020"; ctx.beginPath(); ctx.ellipse(x,gy+2,24*s,5.5*s,0,0,7); ctx.fill(); ctx.restore();
+      const _bo=Math.abs(Math.sin(p))*10 + bobv*2;                    // 러닝 바운스(스텝마다 통통)
+      const _sh=6*s*(1-Math.abs(Math.sin(p))*0.35);                    // 뜰 때 그림자 살짝 작게
+      ctx.save(); ctx.fillStyle="#0000001e"; ctx.beginPath(); ctx.ellipse(x,gy+2,22*s,_sh,0,0,7); ctx.fill(); ctx.restore();
       const _fi=_SP.start+(Math.floor(((p%(Math.PI*2)+Math.PI*2)%(Math.PI*2))/(Math.PI*2)*_SP.run)%_SP.run);
-      const _dh=112*s, _dw=_SP.cw/_SP.ch*_dh, _top=gy-_bo*s-_dh+(6/_SP.ch*_dh);
+      const _dh=116*s, _dw=_SP.cw/_SP.ch*_dh, _top=gy-_bo*s-_dh+(6/_SP.ch*_dh);
       ctx.drawImage(_img,_fi*_SP.cw,0,_SP.cw,_SP.ch, x-_dw/2,_top,_dw,_dh);
       if(fast){ ctx.strokeStyle=col||"#ffffffbb"; ctx.lineWidth=3; ctx.lineCap="round"; for(let i=0;i<3;i++){const yy=_top+_dh*0.42+i*13; ctx.beginPath(); ctx.moveTo(x-_dw*0.42,yy); ctx.lineTo(x-_dw*0.42-16-i*7,yy); ctx.stroke();} }
       return;
     }
     const ghost=!!col;
-    const TAU=Math.PI*2;
-    const phase=p;
-    const stride=Math.cos(phase);
-    const bounce=(Math.abs(Math.sin(phase))*1.9 + bobv*0.9);
-
-    // ground shadow
-    ctx.save();
-    ctx.fillStyle=ghost?(col+"2a"):"#00000024";
-    ctx.beginPath();
-    ctx.ellipse(x+3*s,gy+4,27*s,5.8*s,0,0,TAU);
-    ctx.fill();
-    ctx.restore();
-
-    ctx.save();
-    ctx.translate(x,gy-bounce*s);
-    ctx.scale(s,s);
-    ctx.lineCap="round";
-    ctx.lineJoin="round";
-
-    const SKIN=ghost?col:"#ffd2a6";
-    const SKIN_D=ghost?col:"#e9ad7c";
-    const HAIR=ghost?col:"#4c2b24";
-    const HAIR_H=ghost?col:"#6e4134";
-    const RED=ghost?col:"#ff4b3f";
-    const RED_D=ghost?col:"#d93835";
-    const WHITE=ghost?col:"#fffdf9";
-    const SHORTS=ghost?col:"#2e3036";
-    const SHORTS_D=ghost?col:"#22242a";
-    const SHOE=ghost?col:"#ef3d42";
-    const SHOE_D=ghost?col:"#c92f34";
-    const SOLE=ghost?col:"#f7f7f7";
-    const OUT=ghost?col:"#5b332c";
-
-    function capsule(a,b,w,fill,outline=1.6){
-      if(!ghost && outline>0){
-        ctx.strokeStyle=OUT;
-        ctx.lineWidth=w+outline*2;
-        ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-      }
-      ctx.strokeStyle=fill;
-      ctx.lineWidth=w;
-      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-    }
-
-    function circle(px,py,r,fill,stroke=true,lw=1.5){
-      ctx.fillStyle=fill;
-      ctx.beginPath(); ctx.arc(px,py,r,0,TAU); ctx.fill();
-      if(stroke&&!ghost){ctx.strokeStyle=OUT;ctx.lineWidth=lw;ctx.stroke();}
-    }
-
-    function ellipse(px,py,rx,ry,rot,fill,stroke=true,lw=1.5){
-      ctx.fillStyle=fill;
-      ctx.beginPath(); ctx.ellipse(px,py,rx,ry,rot,0,TAU); ctx.fill();
-      if(stroke&&!ghost){ctx.strokeStyle=OUT;ctx.lineWidth=lw;ctx.stroke();}
-    }
-
-    function solve2(root,target,l1,l2,bend){
-      let dx=target.x-root.x, dy=target.y-root.y;
-      let d=Math.hypot(dx,dy);
-      d=Math.max(Math.abs(l1-l2)+0.01,Math.min(l1+l2-0.01,d));
-      const ux=dx/d, uy=dy/d;
-      const a=(l1*l1-l2*l2+d*d)/(2*d);
-      const h=Math.sqrt(Math.max(0,l1*l1-a*a));
-      const mx=root.x+ux*a, my=root.y+uy*a;
-      return {x:mx+(-uy)*h*bend,y:my+ux*h*bend};
-    }
-
-    function mix(a,b,t){return{x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};}
-
-    // Chibi proportions matching Image A: large head, compact torso, short rounded limbs.
-    const hip={x:-1,y:-31};
-    const sh={x:7,y:-54};
-    const neck={x:10,y:-61};
-    const head={x:12,y:-83};
-
+    const bounce=Math.abs(Math.sin(p))*5 + bobv*2;
+    // ── 그림자 ──
+    ctx.save(); ctx.fillStyle="#00000020"; ctx.beginPath(); ctx.ellipse(x,gy+3,23*s,5.5*s,0,0,7); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.translate(x,gy-bounce*s); ctx.scale(s,s);
+    ctx.lineCap="round"; ctx.lineJoin="round";
+    // ── 팔레트 ──
+    const SKIN=ghost?col:"#ffd6ac", SKIN_D=ghost?col:"#e7bd91",
+          HAIR=ghost?col:"#6f4423",
+          WHITE=ghost?col:"#ffffff", RED=ghost?col:"#ff5147", RED_D=ghost?col:"#df453c",
+          SHORTS=ghost?col:"#2b303b", SHORTS_D=ghost?col:"#222630",
+          SHOE=ghost?col:"#ef3b3b", SHOE_D=ghost?col:"#cf3030", BAND=ghost?col:"#ff3b3b";
+    // ── 골격 (강한 치비: 큰 머리 + 짧은 몸통, 앞으로 기울임) ──
+    const lean=0.34, hip={x:0,y:-33};
+    const sh={x:hip.x+Math.sin(lean)*20, y:hip.y-Math.cos(lean)*20};      // 짧은 몸통
+    const hd={x:sh.x+Math.sin(lean)*27, y:sh.y-Math.cos(lean)*27};        // 큰 머리
+    const legAng=q=>({a1:Math.sin(q)*0.95, a2:Math.sin(q)*0.95-(0.55+Math.max(0,Math.sin(q+1.0))*1.35)});
+    const armAng=q=>({a1:Math.sin(q)*0.95, a2:Math.sin(q)*0.95+1.15});    // 앞뒤 스윙 확실
+    // 다리: 피부 허벅지/종아리(무릎 분리) + 반바지(위) + 흰양말(발목) + 큰 러닝화
     function drawLeg(q,front){
-      const legStride=Math.cos(q);
-      const root={x:hip.x+(front?2:-2),y:hip.y+3};
-      const lift=Math.max(0,-legStride)*9 + Math.max(0,Math.sin(q))*3;
-      const ankle={
-        x:root.x+legStride*23,
-        y:-2-lift
-      };
-      const knee=solve2(root,ankle,18.5,18.5,legStride>=0?-1:1);
-      const skin=front?SKIN:SKIN_D;
-
-      // shorts upper segment only
-      const shortsEnd=mix(root,knee,0.38);
-      capsule(root,shortsEnd,14.5,front?SHORTS:SHORTS_D,1.4);
-      capsule(shortsEnd,knee,10.5,skin,1.4);
-      capsule(knee,ankle,9.2,skin,1.3);
-
-      // white sock
-      const sock=mix(knee,ankle,0.72);
-      capsule(sock,ankle,8.6,WHITE,1.1);
-
-      // oversized red running shoe, always pointing forward like the reference
-      const rise=lift>2?-0.18:0.04;
-      const heel={x:ankle.x-3,y:ankle.y+1};
-      const toe={x:ankle.x+13,y:ankle.y+2+rise*4};
-
-      if(!ghost){
-        ctx.strokeStyle=OUT;ctx.lineWidth=13;
-        ctx.beginPath();ctx.moveTo(heel.x,heel.y);ctx.lineTo(toe.x,toe.y);ctx.stroke();
-      }
-      ctx.strokeStyle=front?SHOE:SHOE_D;ctx.lineWidth=10.5;
-      ctx.beginPath();ctx.moveTo(heel.x,heel.y);ctx.lineTo(toe.x,toe.y);ctx.stroke();
-      ellipse(toe.x+1,toe.y,7.1,4.8,rise,front?SHOE:SHOE_D,!ghost,1.2);
-
-      if(!ghost){
-        ctx.strokeStyle=SOLE;ctx.lineWidth=3;
-        ctx.beginPath();
-        ctx.moveTo(heel.x-1,heel.y+4);
-        ctx.quadraticCurveTo(toe.x-2,toe.y+5,toe.x+5,toe.y+3.7);
-        ctx.stroke();
-
-        // shoe highlight / lace marks
-        ctx.strokeStyle="#ffffffdd";ctx.lineWidth=1.8;
-        ctx.beginPath();ctx.moveTo(toe.x-4,toe.y-2);ctx.lineTo(toe.x+1,toe.y-1);ctx.stroke();
-        ctx.beginPath();ctx.moveTo(toe.x-2,toe.y+0.3);ctx.lineTo(toe.x+2.5,toe.y+1);ctx.stroke();
-      }
+      const a=legAng(q), knee=jnt(hip,a.a1,16), ank=jnt(knee,a.a2,15), skin=front?SKIN:SKIN_D;
+      seg(hip,knee, skin, 12); seg(knee,ank, skin, 10);                   // 피부 다리
+      const hm={x:hip.x+(knee.x-hip.x)*0.5, y:hip.y+(knee.y-hip.y)*0.5};
+      seg(hip,hm, front?SHORTS:SHORTS_D, 15);                             // 반바지(위쪽)
+      const st={x:knee.x+(ank.x-knee.x)*0.6, y:knee.y+(ank.y-knee.y)*0.6};
+      seg(st,ank, WHITE, 10);                                             // 흰 양말
+      const dir=a.a2, toe={x:ank.x+Math.cos(dir)*13,y:ank.y+Math.sin(dir)*3+1}, heel={x:ank.x-Math.cos(dir)*4,y:ank.y+2};
+      ctx.strokeStyle=front?SHOE:SHOE_D; ctx.lineWidth=11; ctx.beginPath(); ctx.moveTo(heel.x,heel.y); ctx.lineTo(toe.x,toe.y); ctx.stroke();
+      ctx.fillStyle=front?SHOE:SHOE_D; ctx.beginPath(); ctx.ellipse(toe.x,toe.y,7,5,dir,0,7); ctx.fill();       // 앞코
+      ctx.strokeStyle=WHITE; ctx.lineWidth=3.2; ctx.beginPath(); ctx.moveTo(heel.x-1,heel.y+5); ctx.lineTo(toe.x+2,toe.y+4); ctx.stroke(); // 흰 밑창
     }
-
+    // 팔: 빨간 소매(위팔) + 피부(아래팔) + 작은 주먹
     function drawArm(q,front){
-      const armSwing=-Math.cos(q);
-      const root={x:sh.x+(front?1.5:-1.5),y:sh.y+2};
-      const hand={
-        x:root.x+armSwing*18,
-        y:root.y+12-(Math.abs(armSwing)*2)
-      };
-      const elbow=solve2(root,hand,12.5,12.5,armSwing>=0?1:-1);
-      const skin=front?SKIN:SKIN_D;
-
-      // red raglan sleeve at shoulder
-      const sleeveEnd=mix(root,elbow,0.46);
-      capsule(root,sleeveEnd,12.5,front?RED:RED_D,1.4);
-      capsule(sleeveEnd,elbow,8.6,skin,1.2);
-      capsule(elbow,hand,8.2,skin,1.2);
-      circle(hand.x,hand.y,4.8,skin,true,1.2);
+      const a=armAng(q), elb=jnt(sh,a.a1,13), hand=jnt(elb,a.a2,11);
+      seg(sh,elb, front?RED:RED_D, 12);
+      seg(elb,hand, front?SKIN:SKIN_D, 8.5);
+      ctx.fillStyle=front?SKIN:SKIN_D; ctx.beginPath(); ctx.arc(hand.x,hand.y,5,0,7); ctx.fill();
     }
-
-    // rear limbs
-    drawArm(phase,false);
-    drawLeg(phase+Math.PI,false);
-
-    // torso: tapered white shirt with red collar, more like an illustrated shirt than a stick
-    ctx.beginPath();
-    ctx.moveTo(sh.x-8,sh.y+1);
-    ctx.quadraticCurveTo(sh.x-10,sh.y+10,hip.x-8,hip.y+3);
-    ctx.quadraticCurveTo(hip.x,hip.y+8,hip.x+9,hip.y+3);
-    ctx.quadraticCurveTo(sh.x+11,sh.y+10,sh.x+9,sh.y+1);
-    ctx.closePath();
-    if(!ghost){ctx.fillStyle=OUT;ctx.fill();}
-    ctx.save();
-    ctx.translate(0,0);
-    ctx.beginPath();
-    ctx.moveTo(sh.x-6.5,sh.y+2);
-    ctx.quadraticCurveTo(sh.x-8,sh.y+10,hip.x-6.8,hip.y+2.5);
-    ctx.quadraticCurveTo(hip.x,hip.y+6,hip.x+7.7,hip.y+2.5);
-    ctx.quadraticCurveTo(sh.x+9,sh.y+10,sh.x+7.5,sh.y+2);
-    ctx.closePath();
-    ctx.fillStyle=WHITE;ctx.fill();
-    ctx.restore();
-
-    // red collar
-    if(!ghost){
-      ctx.strokeStyle=RED;ctx.lineWidth=3.5;
-      ctx.beginPath();ctx.arc(sh.x+1,sh.y+2,7.2,0.2,Math.PI-0.2);ctx.stroke();
-
-      // chest logo
-      ctx.fillStyle=RED;
-      ctx.beginPath();
-      ctx.moveTo(4,-44);ctx.lineTo(10,-39);ctx.lineTo(6,-39.5);
-      ctx.lineTo(3,-36);ctx.lineTo(0,-41);ctx.closePath();ctx.fill();
-
-      // soft shirt shading
-      ctx.fillStyle="#e9eef7";
-      ctx.beginPath();
-      ctx.moveTo(-2,-37);ctx.lineTo(3,-34);ctx.lineTo(0,-31);ctx.closePath();ctx.fill();
+    // 1) 뒤쪽 팔·다리
+    drawArm(p,false); drawLeg(p+Math.PI,false);
+    // 2) 목 + 몸통(흰 셔츠, 짧고 둥근) + 빨간 로고
+    seg(sh,{x:sh.x+Math.sin(lean)*6,y:sh.y-Math.cos(lean)*6}, SKIN, 9);
+    ctx.strokeStyle=WHITE; ctx.lineWidth=22; ctx.beginPath(); ctx.moveTo(hip.x,hip.y); ctx.lineTo(sh.x,sh.y); ctx.stroke();
+    { const mid={x:(hip.x+sh.x)/2+2,y:(hip.y+sh.y)/2}; ctx.fillStyle=RED; ctx.beginPath(); ctx.moveTo(mid.x,mid.y-5); ctx.lineTo(mid.x+5,mid.y+3); ctx.lineTo(mid.x-5,mid.y+3); ctx.closePath(); ctx.fill(); }
+    // 3) 머리: 뒤 볼륨 → 얼굴 → 둥근 앞머리 → 얇은 헤어밴드 → 표정
+    ctx.fillStyle=HAIR; ctx.beginPath(); ctx.arc(hd.x-4,hd.y-4,23,0,7); ctx.fill();      // 뒤 머리 볼륨
+    ctx.fillStyle=SKIN; ctx.beginPath(); ctx.arc(hd.x,hd.y,22,0,7); ctx.fill();          // 큰 얼굴
+    if(!ghost){ ctx.fillStyle=HAIR;   // 둥근 앞머리 tuft 4개
+      const bang=(cx,cy,r)=>{ctx.beginPath();ctx.arc(hd.x+cx,hd.y+cy,r,0,7);ctx.fill();};
+      bang(-12,-15,8); bang(-1,-19,9); bang(10,-17,8.5); bang(19,-11,7);
     }
-
-    // compact shorts block
-    ellipse(hip.x+1,hip.y+3,11.8,7.8,0.1,SHORTS,true,1.4);
-    if(!ghost){
-      ctx.strokeStyle="#ffffffd9";ctx.lineWidth=2.2;
-      ctx.beginPath();ctx.moveTo(hip.x+4,hip.y-3);ctx.lineTo(hip.x+7,hip.y+5);ctx.stroke();
-    }
-
-    // neck
-    capsule({x:sh.x+1,y:sh.y-1},{x:neck.x,y:neck.y+2},8.2,SKIN,1.2);
-
-    // head hair mass first
-    circle(head.x-5,head.y-4,23.5,HAIR,true,1.8);
-
-    // spiky hair silhouette like Image A
-    if(!ghost){
-      ctx.fillStyle=HAIR;
-      ctx.strokeStyle=OUT;ctx.lineWidth=1.7;
-      ctx.beginPath();
-      ctx.moveTo(head.x-19,head.y-11);
-      ctx.lineTo(head.x-26,head.y-17);
-      ctx.quadraticCurveTo(head.x-18,head.y-19,head.x-12,head.y-16);
-      ctx.lineTo(head.x-17,head.y-27);
-      ctx.quadraticCurveTo(head.x-8,head.y-24,head.x-4,head.y-19);
-      ctx.lineTo(head.x+1,head.y-31);
-      ctx.quadraticCurveTo(head.x+7,head.y-25,head.x+8,head.y-18);
-      ctx.lineTo(head.x+15,head.y-28);
-      ctx.quadraticCurveTo(head.x+20,head.y-21,head.x+17,head.y-14);
-      ctx.lineTo(head.x+24,head.y-20);
-      ctx.quadraticCurveTo(head.x+26,head.y-11,head.x+18,head.y-7);
-      ctx.quadraticCurveTo(head.x+5,head.y-15,head.x-4,head.y-8);
-      ctx.quadraticCurveTo(head.x-10,head.y-14,head.x-19,head.y-11);
-      ctx.closePath();ctx.fill();ctx.stroke();
-
-      ctx.fillStyle=HAIR_H;
-      ctx.beginPath();
-      ctx.ellipse(head.x-7,head.y-14,7,2.2,-0.35,0,TAU);ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(head.x+6,head.y-19,5.5,1.8,-0.55,0,TAU);ctx.fill();
-    }
-
-    // face oval on top of back hair
-    ellipse(head.x+2,head.y+1,20.8,21.3,-0.04,SKIN,true,1.7);
-
-    // ear
-    circle(head.x-16.5,head.y+2.5,5.3,SKIN_D,true,1.1);
-    if(!ghost){
-      ctx.strokeStyle="#c98261";ctx.lineWidth=1.2;
-      ctx.beginPath();ctx.arc(head.x-16.5,head.y+2.5,2.4,-1.1,1.1);ctx.stroke();
-    }
-
-    // front hair strands over forehead
-    if(!ghost){
-      ctx.fillStyle=HAIR;
-      const tuft=(cx,cy,rx,ry,rot)=>{
-        ctx.beginPath();ctx.ellipse(cx,cy,rx,ry,rot,0,TAU);ctx.fill();
-      };
-      tuft(head.x-9,head.y-14,8,5,-0.25);
-      tuft(head.x,head.y-17,8.5,5.4,-0.45);
-      tuft(head.x+9,head.y-15,7.2,4.7,-0.6);
-    }
-
-    // headband + two long flowing tails
-    ctx.save();
-    ctx.translate(head.x,head.y);
-    if(!ghost){
-      ctx.strokeStyle=OUT;ctx.lineWidth=8.5;
-      ctx.beginPath();ctx.moveTo(-17,-12);ctx.quadraticCurveTo(0,-18,18,-11);ctx.stroke();
-    }
-    ctx.strokeStyle=RED;ctx.lineWidth=6.1;
-    ctx.beginPath();ctx.moveTo(-17,-12);ctx.quadraticCurveTo(0,-18,18,-11);ctx.stroke();
-
-    const flap=Math.sin(phase*2)*2.2;
-    if(!ghost){
-      ctx.strokeStyle=OUT;ctx.lineWidth=7;
-      ctx.beginPath();ctx.moveTo(-16,-10);ctx.quadraticCurveTo(-31,-12+flap,-44,-4+flap);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(-16,-6);ctx.quadraticCurveTo(-31,-1+flap,-43,7+flap);ctx.stroke();
-    }
-    ctx.strokeStyle=RED;ctx.lineWidth=4.8;
-    ctx.beginPath();ctx.moveTo(-16,-10);ctx.quadraticCurveTo(-31,-12+flap,-44,-4+flap);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(-16,-6);ctx.quadraticCurveTo(-31,-1+flap,-43,7+flap);ctx.stroke();
-
-    if(!ghost){
-      // two large expressive eyes
-      ctx.fillStyle="#ffffff";
-      ctx.beginPath();ctx.ellipse(8,-1,5.6,7.3,0,0,TAU);ctx.fill();
-      ctx.strokeStyle=OUT;ctx.lineWidth=1.2;ctx.stroke();
-      ctx.beginPath();ctx.ellipse(0,-1.5,4.5,6.4,0,0,TAU);ctx.fill();
-      ctx.strokeStyle=OUT;ctx.lineWidth=1.1;ctx.stroke();
-
-      ctx.fillStyle="#3a2823";
-      ctx.beginPath();ctx.ellipse(9,-0.2,3.3,4.6,0,0,TAU);ctx.fill();
-      ctx.beginPath();ctx.ellipse(1,-0.8,2.6,3.9,0,0,TAU);ctx.fill();
-
-      ctx.fillStyle="#ffffff";
-      ctx.beginPath();ctx.arc(10.2,-2.1,1.1,0,TAU);ctx.fill();
-      ctx.beginPath();ctx.arc(2,-2.4,0.9,0,TAU);ctx.fill();
-
-      // eyebrows
-      ctx.strokeStyle="#4a2d26";ctx.lineWidth=2.1;
-      ctx.beginPath();ctx.arc(7,-8.7,4.4,3.55,5.7);ctx.stroke();
-      ctx.beginPath();ctx.arc(-0.3,-8.4,3.3,3.7,5.5);ctx.stroke();
-
-      // cheeks
-      ctx.fillStyle="#ff9faf99";
-      ctx.beginPath();ctx.ellipse(4.2,8.1,4.2,2.7,-0.1,0,TAU);ctx.fill();
-
-      // open happy smile
-      ctx.fillStyle="#8e3830";
-      ctx.beginPath();
-      ctx.moveTo(8,6);
-      ctx.quadraticCurveTo(15,7,16,4.2);
-      ctx.quadraticCurveTo(15,13,8.5,11.8);
-      ctx.closePath();ctx.fill();
-      ctx.fillStyle="#ff7e82";
-      ctx.beginPath();ctx.ellipse(12.5,9.8,2.4,1.2,0,0,TAU);ctx.fill();
-    }
-    ctx.restore();
-
-    // front limbs on top
-    drawLeg(phase,true);
-    drawArm(phase+Math.PI,true);
-
-    // subtle speed streaks
-    if(fast){
-      ctx.strokeStyle=ghost?col:"#b8e0ffcc";
-      ctx.lineWidth=2.4;
-      for(let i=0;i<3;i++){
-        const yy=-52+i*12;
-        ctx.beginPath();ctx.moveTo(-30,yy);ctx.lineTo(-48-i*5,yy);ctx.stroke();
+    ctx.save(); ctx.translate(hd.x,hd.y); ctx.rotate(lean);
+      ctx.strokeStyle=BAND; ctx.lineWidth=5; ctx.beginPath(); ctx.arc(0,-3,20,Math.PI*1.12,Math.PI*1.9); ctx.stroke();  // 얇은 헤어밴드(이마)
+      const flap=Math.sin(p*2)*5;
+      ctx.lineWidth=4.5;   // 리본 2가닥
+      ctx.beginPath(); ctx.moveTo(-18,-8); ctx.quadraticCurveTo(-32,-11+flap,-42,-6+flap); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-18,-4); ctx.quadraticCurveTo(-33,2+flap*1.3,-41,7+flap); ctx.stroke();
+      if(!ghost){
+        ctx.fillStyle="#ffffff"; ctx.beginPath(); ctx.arc(10,1,6.5,0,7); ctx.fill();        // 큰 눈 흰자
+        ctx.fillStyle="#3a2b22"; ctx.beginPath(); ctx.arc(11.5,1.5,3.6,0,7); ctx.fill();     // 큰 눈동자
+        ctx.fillStyle="#ffffff"; ctx.beginPath(); ctx.arc(13,-0.4,1.3,0,7); ctx.fill();      // 반짝
+        ctx.strokeStyle="#5e3a1e"; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(10,-8,4.5,Math.PI*1.12,Math.PI*1.92); ctx.stroke(); // 눈썹
+        ctx.fillStyle="#8a3a24"; ctx.beginPath(); ctx.arc(6,8,4,0.06,Math.PI-0.06); ctx.fill();  // 웃는 입
+        ctx.fillStyle="#ff8f7a"; ctx.beginPath(); ctx.arc(6,10,2,0,Math.PI); ctx.fill();         // 혀
+        ctx.fillStyle="#ff9db0aa"; ctx.beginPath(); ctx.arc(1,9,3,0,7); ctx.fill();              // 볼터치
       }
-    }
-
+    ctx.restore();
+    // 4) 앞쪽 팔·다리
+    drawArm(p+Math.PI,true); drawLeg(p,true);
+    if(fast){ ctx.strokeStyle=ghost?col:"#ffffffbb"; ctx.lineWidth=3; for(let i=0;i<3;i++){const yy=-36+i*12; ctx.beginPath(); ctx.moveTo(-24,yy); ctx.lineTo(-24-16-i*7,yy); ctx.stroke();} }
     ctx.restore();
   }
 
