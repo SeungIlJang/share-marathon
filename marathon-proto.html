@@ -358,34 +358,68 @@
   // 관절 좌표 (root→각도·길이). 각도 수직(아래)=0, 앞(+x)=양수
   function jnt(r,a,l){ return {x:r.x+Math.sin(a)*l, y:r.y+Math.cos(a)*l}; }
   function seg(a,b,col,w){ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); }
+  // 귀여운 치비 러너 — 파트별로 나눠 코드로 직접 그림 (스프라이트 아님)
+  // col 지정 시(라이벌 고스트) 전체를 그 색 단색 실루엣으로. 게임 로직/호출부는 그대로.
   function drawRunner(x,gy,s,p,bobv,fast,col){
-    const bounce=Math.abs(Math.sin(p))*9 + bobv*3;
-    ctx.save(); ctx.fillStyle="#00000026"; ctx.beginPath(); ctx.ellipse(x,gy+3,30*s,7*s,0,0,7); ctx.fill(); ctx.restore();
+    const ghost=!!col;
+    const bounce=Math.abs(Math.sin(p))*6 + bobv*2;                     // 귀엽고 부드러운 상하 반동
+    // ── 그림자 ──
+    ctx.save(); ctx.fillStyle="#00000022"; ctx.beginPath(); ctx.ellipse(x,gy+3,24*s,6*s,0,0,7); ctx.fill(); ctx.restore();
     ctx.save(); ctx.translate(x,gy-bounce*s); ctx.scale(s,s);
     ctx.lineCap="round"; ctx.lineJoin="round";
-    const C=col||"#1f242c";   // 꽉 찬 실루엣 (러닝 픽토그램). 라이벌은 반투명 색
-    const lean=0.5, hip={x:0,y:-46};
-    const sh={x:hip.x+Math.sin(lean)*40, y:hip.y-Math.cos(lean)*40};
-    const hd={x:sh.x+Math.sin(lean)*22, y:sh.y-Math.cos(lean)*22};
-    // 큰 무릎 리프트 + 뒷다리 차올림 = 스프라이트 특유의 역동적 스탠스
-    const legAng=q=>({a1:Math.sin(q)*1.25, a2:Math.sin(q)*1.25-(0.5+Math.max(0,Math.sin(q+1.0))*1.9)});
-    const armAng=q=>({a1:Math.sin(q)*0.9, a2:Math.sin(q)*0.9+1.78});
-    function drawLeg(q){
-      const a=legAng(q), knee=jnt(hip,a.a1,27), ank=jnt(knee,a.a2,27);
-      seg(hip,knee,C,26); seg(knee,ank,C,20);
-      const shoe={x:ank.x+Math.cos(a.a2)*18+3, y:ank.y+Math.sin(a.a2)*5+2};
-      seg(ank,shoe,C,18);
+    // ── 팔레트 ──
+    const SKIN=ghost?col:"#ffd3a8", SKIN_D=ghost?col:"#eab588",
+          HAIR=ghost?col:"#7a4a24", SHIRT=ghost?col:"#ff5a5a", SHIRT_D=ghost?col:"#e14848",
+          WHITE=ghost?col:"#ffffff", SHORTS=ghost?col:"#2c313d", SHORTS_D=ghost?col:"#232732",
+          SHOE=ghost?col:"#ef3b3b", SHOE_D=ghost?col:"#c92e2e", BAND=ghost?col:"#ff3b3b";
+    // ── 골격 기준점 (치비: 짧은 몸통 + 큰 머리) ──
+    const lean=0.30, hip={x:0,y:-38};
+    const sh={x:hip.x+Math.sin(lean)*24, y:hip.y-Math.cos(lean)*24};
+    const hd={x:sh.x+Math.sin(lean)*28, y:sh.y-Math.cos(lean)*28};
+    const legAng=q=>({a1:Math.sin(q)*0.9,  a2:Math.sin(q)*0.9 -(0.5+Math.max(0,Math.sin(q+1.0))*1.25)});
+    const armAng=q=>({a1:Math.sin(q)*0.75, a2:Math.sin(q)*0.75+1.25});
+    // 다리: 허벅지=반바지, 정강이=흰 양말, 큰 러닝화
+    function drawLeg(q,front){
+      const a=legAng(q), knee=jnt(hip,a.a1,17), ank=jnt(knee,a.a2,16);
+      seg(knee,ank, WHITE, 12);                                        // 정강이/양말
+      seg(hip,knee, front?SHORTS:SHORTS_D, 17);                        // 허벅지(반바지)
+      const dir=a.a2, toe={x:ank.x+Math.cos(dir)*12, y:ank.y+Math.sin(dir)*3};
+      ctx.strokeStyle=front?SHOE:SHOE_D; ctx.lineWidth=12; ctx.beginPath(); ctx.moveTo(ank.x,ank.y); ctx.lineTo(toe.x,toe.y); ctx.stroke();
+      ctx.fillStyle=front?SHOE:SHOE_D; ctx.beginPath(); ctx.ellipse(toe.x,toe.y+1,8,5.5,dir,0,7); ctx.fill();
     }
-    function drawArm(q){
-      const a=armAng(q), elb=jnt(sh,a.a1,20), hand=jnt(elb,a.a2,18);
-      seg(sh,elb,C,20); seg(elb,hand,C,16);
+    // 팔: 소매=셔츠색, 아래팔=피부, 큰 손
+    function drawArm(q,front){
+      const a=armAng(q), elb=jnt(sh,a.a1,14), hand=jnt(elb,a.a2,12);
+      seg(sh,elb, front?SHIRT:SHIRT_D, 13);
+      seg(elb,hand, front?SKIN:SKIN_D, 10);
+      ctx.fillStyle=front?SKIN:SKIN_D; ctx.beginPath(); ctx.arc(hand.x,hand.y,6,0,7); ctx.fill();
     }
-    // 뒤쪽(먼) 팔·다리 → 몸통 → 앞쪽(가까운) 팔·다리 순서로 겹쳐 하나의 실루엣
-    drawLeg(p+Math.PI); drawArm(p);
-    seg(hip,sh,C,34); seg(sh,hd,C,16);
-    ctx.fillStyle=C; ctx.beginPath(); ctx.arc(hd.x,hd.y,17,0,7); ctx.fill();   // 머리(꽉 찬 원)
-    drawArm(p+Math.PI); drawLeg(p);
-    if(fast){ ctx.strokeStyle="#1f242c44"; ctx.lineWidth=4; ctx.lineCap="round"; for(let i=0;i<3;i++){const yy=-52+i*20; ctx.beginPath(); ctx.moveTo(-34,yy); ctx.lineTo(-34-24-i*10,yy); ctx.stroke();} }
+    // 1) 뒤쪽(먼) 팔·다리 (반대 위상 = 자연스러운 스윙)
+    drawArm(p,false); drawLeg(p+Math.PI,false);
+    // 2) 몸통(짧고 둥근 셔츠) + 흰 포인트
+    ctx.strokeStyle=SHIRT; ctx.lineWidth=24; ctx.beginPath(); ctx.moveTo(hip.x,hip.y); ctx.lineTo(sh.x,sh.y); ctx.stroke();
+    ctx.strokeStyle=WHITE; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(hip.x,hip.y-2); ctx.lineTo(sh.x,sh.y-2); ctx.stroke();
+    // 3) 머리: 뒤 머리카락 → 얼굴 → 앞머리 → 헤어밴드 → 얼굴 표정
+    ctx.fillStyle=HAIR;  ctx.beginPath(); ctx.arc(hd.x-3,hd.y-3,20,0,7); ctx.fill();     // 뒤 머리 볼륨
+    ctx.fillStyle=SKIN;  ctx.beginPath(); ctx.arc(hd.x,hd.y,19,0,7); ctx.fill();         // 얼굴(큰 머리)
+    if(!ghost){ ctx.fillStyle=HAIR; for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.arc(hd.x+i*9+3, hd.y-15, 7.5, 0, 7); ctx.fill(); } } // 앞머리 뭉치
+    ctx.save(); ctx.translate(hd.x,hd.y); ctx.rotate(lean);
+      ctx.strokeStyle=BAND; ctx.lineWidth=7; ctx.beginPath(); ctx.arc(0,-1,19,Math.PI*1.03,Math.PI*1.97); ctx.stroke();  // 빨간 헤어밴드
+      const flap=Math.sin(p*2)*5;
+      ctx.beginPath(); ctx.moveTo(-17,-5); ctx.quadraticCurveTo(-30,-3+flap,-36,3+flap); ctx.lineWidth=5; ctx.stroke(); // 뒤로 날리는 끈
+      if(!ghost){
+        ctx.fillStyle="#ffffff"; ctx.beginPath(); ctx.arc(9,0,5.5,0,7); ctx.fill();       // 큰 눈 흰자
+        ctx.fillStyle="#3a2b22"; ctx.beginPath(); ctx.arc(10.5,0.5,3,0,7); ctx.fill();     // 눈동자
+        ctx.fillStyle="#ffffff"; ctx.beginPath(); ctx.arc(11.6,-0.9,1,0,7); ctx.fill();    // 반짝
+        ctx.strokeStyle="#7a4a24"; ctx.lineWidth=1.8; ctx.beginPath(); ctx.arc(9,-7,4,Math.PI*1.1,Math.PI*1.95); ctx.stroke(); // 눈썹
+        ctx.strokeStyle="#c0442f"; ctx.lineWidth=2.4; ctx.beginPath(); ctx.arc(7,7,4.5,0.12,Math.PI-0.32); ctx.stroke();       // 미소
+        ctx.fillStyle="#ff9db0aa"; ctx.beginPath(); ctx.arc(2.5,7,3,0,7); ctx.fill();      // 볼터치
+      }
+    ctx.restore();
+    // 4) 앞쪽(가까운) 팔·다리
+    drawArm(p+Math.PI,true); drawLeg(p,true);
+    // 속도선
+    if(fast){ ctx.strokeStyle=ghost?col:"#ffffffbb"; ctx.lineWidth=3; ctx.lineCap="round"; for(let i=0;i<3;i++){const yy=-40+i*13; ctx.beginPath(); ctx.moveTo(-22,yy); ctx.lineTo(-22-18-i*7,yy); ctx.stroke();} }
     ctx.restore();
   }
 
