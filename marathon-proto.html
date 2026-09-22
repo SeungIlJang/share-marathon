@@ -80,6 +80,19 @@
   .lbrow.me{background:#dcecff;border:1.5px solid var(--accent);}
   .lbrow.top1 .rk{color:#e0a800}.lbrow.top2 .rk{color:#9aa7b4}.lbrow.top3 .rk{color:#c9803a}
   .lbsep{text-align:center;color:var(--dim);font-size:12px;padding:3px;}
+  #shopList{width:100%;max-width:360px;max-height:52vh;overflow-y:auto;}
+  .shoe{display:flex;align-items:center;gap:10px;padding:8px;margin:6px 0;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:0 3px 10px #7fb0e01f;}
+  .shoe .ico{width:34px;height:34px;border-radius:9px;flex:0 0 auto;box-shadow:inset 0 -3px 0 #0002;}
+  .shoe .info{flex:1;text-align:left;}
+  .shoe .info b{font-size:15px;}
+  .shoe .info small{color:var(--dim);display:block;}
+  .shoe button{border:none;border-radius:10px;padding:8px 12px;font-weight:800;font-size:13px;}
+  .shoe .buy{background:var(--accent);color:#fff;}
+  .shoe .eq{background:var(--ok);color:#fff;}
+  .shoe .on{background:#e6eef6;color:var(--dim);}
+  #mrow{display:flex;justify-content:space-between;gap:6px;padding:2px 0;}
+  #missions .bar{height:6px;background:#e6eef6;border-radius:4px;overflow:hidden;flex:0 0 70px;align-self:center;}
+  #missions .bar>div{height:100%;background:var(--ok);}
 </style>
 </head>
 <body>
@@ -120,11 +133,25 @@
   </div>
   <p id="goalP">🎯 목표: <b>175spm</b> · 4:53/km · 완주 <b>24:25</b></p>
   <p style="font-size:13px">🥁 <b>박자</b>에 딱 맞춰 밟으면 <b>PERFECT·콤보</b>(🪙코인 적립) · 🏃 <b>라이벌</b>과 경주 · 완주 <b>랭크(S~D)</b><br>💧급수대선 <b>타이밍 물마시기</b> · 체력 낮으면 <b>⚡파워젤</b>(코인) · 너무 빠르면 <b>기권</b></p>
+  <div id="lvbar" style="width:100%;max-width:340px;text-align:left;font-size:13px;color:var(--txt)">
+    <div style="display:flex;justify-content:space-between"><span id="lvTxt">LV.1</span><span id="coinTxt">🪙 0</span></div>
+    <div style="height:8px;background:#e6eef6;border-radius:5px;overflow:hidden;margin-top:3px"><div id="xpFill" style="height:100%;width:0;background:linear-gradient(90deg,#a06bff,#7b3ff2)"></div></div>
+  </div>
+  <div id="missions" style="width:100%;max-width:340px;font-size:12.5px;text-align:left"></div>
   <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
     <button class="btn" id="startBtn">스타트 🏁</button>
     <button class="btn" id="dailyBtn" style="background:linear-gradient(135deg,#a06bff,#7b3ff2);color:#fff">🗓️ 오늘의 챌린지</button>
+    <button class="btn" id="shopBtn" style="background:linear-gradient(135deg,#3fca6b,#2a9d55);color:#fff">🛒 신발상점</button>
     <button class="btn" id="lbBtnStart" style="background:linear-gradient(135deg,#ffd23f,#ff9f1c);color:#5a3a00">🏆 순위표</button>
   </div>
+</div>
+
+<div class="overlay" id="shopScreen" style="display:none">
+  <h1>🛒 신발 상점</h1>
+  <p style="font-size:13px">신발마다 <b>능력치</b>가 달라요. 코인으로 사고 <b>장착</b>하세요.</p>
+  <div id="shopCoin" style="font-weight:900;color:#c98a00">🪙 0</div>
+  <div id="shopList"></div>
+  <button class="btn" id="shopClose">닫기</button>
 </div>
 
 <div class="overlay" id="finScreen" style="display:none">
@@ -216,8 +243,8 @@
     if(!curSeg||curSeg.type==='water')return;
     const bm=60000/curTarget, err=Math.min(Math.abs(t-(beatAt-bm)),Math.abs(beatAt-t));
     let kind,col,pts;
-    if(err<bm*0.16){kind="PERFECT!";col="#3fca6b";pts=100;nPerfect++;gly=Math.min(100,gly+0.8);coins+=2;runCoins+=2;}
-    else if(err<bm*0.34){kind="GOOD";col="#4aa3ff";pts=55;nGood++;coins+=1;runCoins+=1;}
+    if(err<bm*0.16){kind="PERFECT!";col="#3fca6b";pts=100;nPerfect++;gly=Math.min(100,gly+0.8);coins+=2*cmul();runCoins+=2*cmul();}
+    else if(err<bm*0.34){kind="GOOD";col="#4aa3ff";pts=55;nGood++;coins+=1*cmul();runCoins+=1*cmul();}
     else {kind="OFF";col="#8496a8";pts=0;nMiss++;combo=0;}
     if(pts>0){combo++;maxCombo=Math.max(maxCombo,combo);score+=pts+combo*5;saveCoins();}
     if(pts>0&&combo>0&&combo%10===0){ shake=9; judge={txt:"🔥 "+combo+" COMBO!",col:"#ff6f9c",t:now()}; }
@@ -231,7 +258,7 @@
       // 급수대: 그냥 탭하면 무조건 물 마심(+6), 박자에 맞으면 보너스(+12)
       flash(side==="L"?padL:padR,"hit");
       const open=now()<=drinkOpenUntil; const amt=open?12:6;
-      gly=Math.min(100,gly+amt); coins++; runCoins++; saveCoins(); if(open)drinkOpenUntil=0;
+      gly=Math.min(100,gly+amt); coins+=cmul(); runCoins+=cmul(); saveCoins(); if(open)drinkOpenUntil=0;
       judge={txt:open?"🥤 꿀꺽! +12":"💧 한 모금 +6",col:open?"#3fca6b":"#5bbdff",t:now()};
       for(let i=0;i<(open?11:5);i++)sparks.push({x:W*0.28+(Math.random()*40-20),y:H*0.52-72,vx:Math.random()*5-2.5,vy:-(Math.random()*3+1),life:1,water:1});
       return;
@@ -285,10 +312,12 @@
     // 스플릿·응원: km 통과 시
     const kmNow=Math.floor(dist/1000);
     if(kmNow>splitKm){ splitKm=kmNow; if(kmNow>0) setCoach("✅ "+kmNow+"km 통과 · 스플릿 "+fmtT(raceT)+" — "+cheer(),'var(--ok)'); }
-    // 라이벌(고스트): 목표 페이스로 꾸준히 전진 → 추월 경쟁
-    rivalDist += TGT_SPEED*dtS*SCALE;
+    // 고스트: PB가 있으면 '내 최고기록 고스트', 없으면 목표페이스 라이벌
+    if(curPB>0){ rivalDist=Math.min(TARGET_M, TARGET_M*(raceT/curPB)); }
+    else { rivalDist += TGT_SPEED*dtS*SCALE; }
+    if(!halfT && dist>=TARGET_M/2) halfT=raceT;   // 하프 스플릿(네거티브 스플릿 판정용)
     const ahead=dist>=rivalDist;
-    if(ahead!==rivalAhead){ rivalAhead=ahead; setCoach(ahead?"🔥 라이벌 추월!":"라이벌이 앞서갔어요 — 따라잡아요!", ahead?'var(--ok)':'var(--warn)'); }
+    if(ahead!==rivalAhead){ rivalAhead=ahead; setCoach(ahead?(curPB>0?"🔥 내 최고기록 앞질렀어요!":"🔥 라이벌 추월!"):(curPB>0?"내 기록에 뒤지는 중 — 힘내요!":"라이벌이 앞서갔어요 — 따라잡아요!"), ahead?'var(--ok)':'var(--warn)'); }
     if(seg.type==='sprint') shake=Math.max(shake,2.2);   // 스퍼트 구간 지속 럼블
     // 메트로놈: 평소엔 목표 케이던스 박자, 급수대엔 물마시기 박자(느림) + 마시기 창 오픈
     const beatMs=water?620:60000/curTarget;
@@ -313,11 +342,11 @@
       return;
     }
     const over=Math.max(0,cad-SUSTAIN)/60;
-    const drain=over*8+(cad>0?0.9:0)+(1-eff)*3.5;
-    const regen=(cad>0&&cad<=SUSTAIN)?(eff>0.8?1.4:0.8):0; // 페이스 낮추면 회복(벽에서 살아남기)
+    const drain=(over*8+(cad>0?0.9:0)+(1-eff)*3.5)*(buff().drain||1);                 // 신발: 소모 감소
+    const regen=((cad>0&&cad<=SUSTAIN)?(eff>0.8?1.4:0.8):0)*(buff().regen||1)*(1+lvl()*0.015); // 신발+레벨: 회복↑
     gly=Math.max(0,Math.min(100,gly-drain*dtS+regen*dtS));
     let g=eff; if(gly<20)g*=0.5+0.5*(gly/20);
-    speed=(cad/60)*strideFor(cad)*g;
+    speed=(cad/60)*strideFor(cad)*g*(buff().stride||1);                                // 신발: 속도↑
     dist+=speed*dtS*SCALE; if(cad>1)raceT+=dtS*SCALE;
     scroll+=speed*dtS*SCROLL_K;
     gait += (cad/60)*Math.PI*dtS;   // 케이던스에 비례해 다리 회전(스텝당 π)
@@ -533,9 +562,9 @@
       ctx.fillText(open?"💧 지금! 꿀꺽 (보너스)":"💧 탭! 탭! 물 마시기",W/2,H*0.42);
     }
     // 라이벌 화면 밖 표시(가장자리 화살표)
-    if(running){ ctx.fillStyle="#ff6f9c"; ctx.font="bold 13px sans-serif";
-      if(rvx>=W+60){ ctx.textAlign="right"; ctx.fillText("라이벌 🏃 →",W-10,groundY-92); }
-      else if(rvx<=-60){ ctx.textAlign="left"; ctx.fillText("← 🏃 라이벌",10,groundY-92); } }
+    if(running){ ctx.fillStyle=curPB>0?"#e0a800":"#ff6f9c"; ctx.font="bold 13px sans-serif"; const gl=curPB>0?"내 기록 🏅":"라이벌 🏃";
+      if(rvx>=W+60){ ctx.textAlign="right"; ctx.fillText(gl+" →",W-10,groundY-92); }
+      else if(rvx<=-60){ ctx.textAlign="left"; ctx.fillText("← "+gl,10,groundY-92); } }
     // 퍼펙트/물 스파크
     for(let k=sparks.length-1;k>=0;k--){ const sp=sparks[k]; sp.vy+=0.35; sp.x+=sp.vx; sp.y+=sp.vy; sp.life-=0.035;
       if(sp.life<=0){sparks.splice(k,1);continue;} ctx.globalAlpha=Math.max(0,sp.life); ctx.fillStyle=sp.water?"#5bbdff":"#ffd23f"; ctx.beginPath(); ctx.arc(sp.x,sp.y,3,0,7); ctx.fill(); }
@@ -585,6 +614,7 @@
     running=true; dailyMode=!!daily; taps=[]; lastSide=null; lastTapT=now();
     dist=0;raceT=0;gly=100;eff=1;cad=0;cv=0;speed=0;formBreaks=0;legPhase=0;legTarget=0;bob=0;scroll=0;critT=0;gait=0;
     combo=0;maxCombo=0;score=0;nPerfect=0;nGood=0;nMiss=0;judge=null;sparks=[];rivalDist=0;rivalAhead=true;shake=0;runCoins=0;revived=false;
+    halfT=0; pbGhostDist=0; curPB=parseFloat(localStorage.getItem('marathon_pb_'+curDist)||'0');  // PB 고스트 기준
     buildCourse();                    // 지형·급수대·스플릿 코스 생성
     setNext("L"); setCoach("박자에 맞춰 왼발(L)부터",'var(--ok)');
     beatAt=now()+60000/TARGET_CAD;   // 메트로놈 시작
@@ -597,6 +627,32 @@
   const LB_KEY=d=>'marathon_lb_'+d;
   const NPC=["번개발","페이스메이커","철인러너","바람돌이","질주왕","리듬장인","스퍼트","케이던스","완주요정","트랙스타","로드러너","심박왕","호흡법","스플릿","젤러버","급수요정","오르막왕","내리막신","스텝마스터","콤보킹","퍼펙트러너","엔듀런스","라스트원","페이스킬러","마라톤신"];
   const esc=s=>String(s).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+  // ===== 육성(XP/레벨) · 신발 수집 · 일일 미션 · PB 고스트 =====
+  let xp=parseInt(localStorage.getItem('marathon_xp')||'0');
+  const lvl=()=>1+Math.floor(xp/120);
+  let curPB=0, halfT=0, pbGhostDist=0;
+  const SHOES=[
+    {id:'basic',   n:'기본 운동화', c:0,   col:'#e0453c', b:{},              d:'기본'},
+    {id:'cushion', n:'쿠션화',     c:80,  col:'#4aa3ff', b:{regen:1.25},    d:'체력 회복 +25%'},
+    {id:'trail',   n:'트레일화',   c:120, col:'#3fca6b', b:{drain:0.88},    d:'체력 소모 -12%'},
+    {id:'lucky',   n:'행운화',     c:150, col:'#ffd23f', b:{coin:2},        d:'코인 2배 💰'},
+    {id:'carbon',  n:'카본화',     c:220, col:'#20242e', b:{stride:1.06},   d:'속도 +6% ⚡'},
+    {id:'elite',   n:'엘리트화',   c:400, col:'#ff6f9c', b:{regen:1.15,stride:1.05}, d:'회복+속도'},
+  ];
+  let ownShoes=JSON.parse(localStorage.getItem('marathon_shoes')||'["basic"]');
+  let equipShoe=localStorage.getItem('marathon_shoe')||'basic';
+  const buff=()=>{ const s=SHOES.find(x=>x.id===equipShoe)||SHOES[0]; return s.b||{}; };
+  const cmul=()=>buff().coin||1;
+  const saveXP=()=>{try{localStorage.setItem('marathon_xp',String(xp));}catch(e){}};
+  const saveShoes=()=>{try{localStorage.setItem('marathon_shoes',JSON.stringify(ownShoes));localStorage.setItem('marathon_shoe',equipShoe);}catch(e){}};
+  function loadMissions(){ let m; try{m=JSON.parse(localStorage.getItem('marathon_missions'));}catch(e){}
+    if(!m||m.date!==todayStr()){ m={date:todayStr(),perfect:0,dist:0,combo:0,done:{}}; localStorage.setItem('marathon_missions',JSON.stringify(m)); } return m; }
+  const MISSIONS=[
+    {id:'perfect', label:'PERFECT 40회',       tgt:40,   get:m=>m.perfect, rew:40},
+    {id:'dist',    label:'누적 5,000m 달리기', tgt:5000, get:m=>m.dist,    rew:40},
+    {id:'combo',   label:'최대 콤보 30 달성',   tgt:30,   get:m=>m.combo,   rew:50},
+  ];
   function seedLB(d){ const base={'5K':4600,'10K':8600,'하프':16500,'풀':31000}[d]||5000, arr=[];
     for(let i=0;i<100;i++){ arr.push({name:NPC[i%NPC.length]+(Math.floor(i/NPC.length)+1), score:Math.max(50,Math.round(base*(1-i*0.0065)-i*6)), you:false}); }
     return arr; }
@@ -612,9 +668,31 @@
     const myIdx=a.findIndex(e=>e.you); if(myIdx>=15) html+='<div class="lbsep">⋯</div>'+lbRow(myIdx+1,a[myIdx]);
     $("lbList").innerHTML=html; }
   function openLB(d){ renderLB(d); $("finScreen").style.display="none"; $("startScreen").style.display="none"; $("lbScreen").style.display="flex"; }
-  $("lbClose").addEventListener("click",()=>{ $("lbScreen").style.display="none"; $("startScreen").style.display="flex"; assignRandomTarget(); requestAnimationFrame(idleLoop); });
+  $("lbClose").addEventListener("click",()=>{ $("lbScreen").style.display="none"; $("startScreen").style.display="flex"; assignRandomTarget(); renderStartMeta(); requestAnimationFrame(idleLoop); });
   $("lbBtn").addEventListener("click",()=>openLB(curDist));
   $("lbBtnStart").addEventListener("click",()=>openLB(curDist));
+
+  // ===== 시작화면 메타(LV/XP/코인/미션) + 신발 상점 =====
+  function renderStartMeta(){
+    const into=xp%120; $("lvTxt").textContent="LV."+lvl()+" · 러너"; $("coinTxt").textContent="🪙 "+coins;
+    $("xpFill").style.width=(into/120*100)+"%";
+    const m=loadMissions(); let h="🎯 <b>오늘의 미션</b><br>";
+    MISSIONS.forEach(mi=>{ const cur=Math.min(mi.get(m),mi.tgt), pct=cur/mi.tgt*100, ok=m.done[mi.id];
+      h+='<div id="mrow"><span>'+(ok?"✅ ":"")+mi.label+'</span><span class="bar"><div style="width:'+pct+'%"></div></span><span style="flex:0 0 44px;text-align:right">'+cur+'/'+mi.tgt+'</span></div>'; });
+    $("missions").innerHTML=h;
+  }
+  function renderShop(){
+    $("shopCoin").textContent="🪙 "+coins; let h="";
+    SHOES.forEach(s=>{ const owned=ownShoes.includes(s.id), on=equipShoe===s.id;
+      let btn = on ? '<button class="on">장착중</button>' : owned ? '<button class="eq" data-eq="'+s.id+'">장착</button>' : '<button class="buy" data-buy="'+s.id+'">'+s.c+'🪙</button>';
+      h+='<div class="shoe"><div class="ico" style="background:'+s.col+'"></div><div class="info"><b>'+s.n+'</b><small>'+s.d+'</small></div>'+btn+'</div>'; });
+    $("shopList").innerHTML=h;
+    $("shopList").querySelectorAll("[data-buy]").forEach(b=>b.onclick=()=>{ const s=SHOES.find(x=>x.id===b.dataset.buy); if(coins>=s.c){ coins-=s.c; saveCoins(); ownShoes.push(s.id); equipShoe=s.id; saveShoes(); renderShop(); renderStartMeta(); } else alert("코인이 부족해요! (PERFECT로 모으세요)"); });
+    $("shopList").querySelectorAll("[data-eq]").forEach(b=>b.onclick=()=>{ equipShoe=b.dataset.eq; saveShoes(); renderShop(); });
+  }
+  function openShop(){ renderShop(); $("startScreen").style.display="none"; $("shopScreen").style.display="flex"; }
+  $("shopBtn").addEventListener("click",openShop);
+  $("shopClose").addEventListener("click",()=>{ $("shopScreen").style.display="none"; $("startScreen").style.display="flex"; renderStartMeta(); });
 
   // ===== 리워드 광고 (지금은 샘플; 앱 패키징 시 AdMob 리워드로 교체) =====
   function showRewardedAd(onReward){
@@ -660,7 +738,7 @@
     let stats=lbLine+
       "<br>🏆 점수 <b>"+score+"</b>"+sNew+" · 최대 콤보 "+maxCombo+
       "<br>PERFECT "+nPerfect+" · GOOD "+nGood+" · OFF "+nMiss+
-      "<br>라이벌 "+(won?"이김 🥇":"짐 😵")+" · 폼 붕괴 "+formBreaks+"회 · 체력 "+Math.round(gly)+"%";
+      "<br>"+(curPB>0?("내 기록 고스트 "+(won?"앞섬 🏅":"뒤짐")):("라이벌 "+(won?"이김 🥇":"짐 😵")))+" · 폼 붕괴 "+formBreaks+"회 · 체력 "+Math.round(gly)+"%";
     // 다음 종목 해금
     const i=ORDER.indexOf(curDist);
     if(i>=0 && i+1<ORDER.length){ if(i>=unlock()){ localStorage.setItem('marathon_unlock',String(i+1)); stats+="<br>🔓 <b>"+ORDER[i+1]+"</b> 해금!"; } refreshDistButtons(); }
@@ -671,6 +749,20 @@
       localStorage.setItem('marathon_streak',String(st)); localStorage.setItem('marathon_daily_done',todayStr()); localStorage.setItem('marathon_daily_last',todayStr());
       stats="🗓️ <b>오늘의 챌린지 완료!</b> 🔥 "+st+"일 연속<br>"+stats; refreshDailyBtn();
     }
+    // 🏃 러너 공감 배지: 목표 기록선(서브X) + 네거티브 스플릿
+    const MS={'5K':[20,25],'10K':[50,60],'하프':[105,120],'풀':[180,240]}, ms=MS[curDist]; let badge="";
+    if(ms){ const tm=t/60; if(tm<ms[0]) badge="🥇 <b>서브"+ms[0]+"</b> 달성!"; else if(tm<ms[1]) badge="🎖️ <b>서브"+ms[1]+"</b> 달성!"; }
+    let neg=""; if(halfT>0 && (t-halfT)<halfT*0.99) neg="🔥 <b>네거티브 스플릿!</b> 후반이 더 빨랐어요";
+    // ⭐ XP 획득 + 레벨업
+    const preLv=lvl(), gainXP=Math.floor(score/8)+(won?25:12)+(neg?20:0); xp+=gainXP; saveXP();
+    let lvLine="⭐ +"+gainXP+" XP · LV."+lvl()+(lvl()>preLv?" 🆙 레벨업!":"");
+    // 🎯 일일 미션 진행/완료
+    const mm=loadMissions(); mm.perfect+=nPerfect; mm.dist+=Math.round(dist); mm.combo=Math.max(mm.combo,maxCombo);
+    let mDone=[]; MISSIONS.forEach(mi=>{ if(!mm.done[mi.id]&&mi.get(mm)>=mi.tgt){ mm.done[mi.id]=1; coins+=mi.rew; xp+=mi.rew; mDone.push(mi.label); } });
+    localStorage.setItem('marathon_missions',JSON.stringify(mm)); saveCoins(); saveXP();
+    let badges=[badge,neg,lvLine].filter(Boolean).join("<br>");
+    if(mDone.length) badges+="<br>🎯 <b>미션 완료</b>: "+mDone.join(", ")+" (+코인)";
+    stats = badges + "<br>" + stats;
     lastResult={dist:curDist,score,rank:lbRank};
     $("finStats").innerHTML=stats;
     $("dblBtn").style.display=(runCoins>0)?"inline-block":"none"; $("reviveBtn").style.display="none";
@@ -711,7 +803,7 @@
   $("dailyBtn").addEventListener("click",startDaily);
 
   $("startBtn").addEventListener("click",()=>start(false));
-  $("againBtn").addEventListener("click",()=>{ $("finScreen").style.display="none"; assignRandomTarget(); $("startScreen").style.display="flex"; requestAnimationFrame(idleLoop); });
+  $("againBtn").addEventListener("click",()=>{ $("finScreen").style.display="none"; assignRandomTarget(); $("startScreen").style.display="flex"; renderStartMeta(); requestAnimationFrame(idleLoop); });
 
   // 케이던스 게이지 초록존(현재 목표 기준)
   function setGaugeZone(){const z=$("cadZone"); const T=curTarget||TARGET_CAD;
@@ -751,7 +843,7 @@
     if(ORDER.indexOf(b.dataset.d)>unlock()) return; // 잠김
     selectDist(b.dataset.d);
   }));
-  selectDist('5K'); refreshDistButtons(); refreshDailyBtn();
+  selectDist('5K'); refreshDistButtons(); refreshDailyBtn(); renderStartMeta();
 
   resize(); requestAnimationFrame(idleLoop);
 })();
