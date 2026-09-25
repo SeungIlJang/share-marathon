@@ -132,7 +132,7 @@
     <button class="dbtn" data-d="풀">풀</button>
   </div>
   <p id="goalP">🎯 목표: <b>175spm</b> · 4:53/km · 완주 <b>24:25</b></p>
-  <p style="font-size:13px">🥁 <b>박자</b>에 딱 맞춰 밟으면 <b>PERFECT·콤보</b>(🪙코인 적립) · 🏃 <b>라이벌</b>과 경주 · 완주 <b>랭크(S~D)</b><br>💧급수대선 <b>타이밍 물마시기</b> · 체력 낮으면 <b>⚡파워젤</b>(코인) · 너무 빠르면 <b>기권</b></p>
+  <p style="font-size:13px">🥁 <b>박자</b>에 딱 맞춰 밟으면 <b>PERFECT·콤보</b>(🪙코인) · 🏃 <b>고스트</b>와 경주 · 완주 <b>랭크(S~D)</b><br>⚡<b>스퍼트 구간</b> 몰아치기 · 🧱<b>35km 마의 벽</b> 버티고 돌파 · 📸<b>포토피니시</b> · 💧급수대 <b>물마시기</b> · ⚡<b>파워젤</b></p>
   <div id="lvbar" style="width:100%;max-width:340px;text-align:left;font-size:13px;color:var(--txt)">
     <div style="display:flex;justify-content:space-between"><span id="lvTxt">LV.1</span><span id="coinTxt">🪙 0</span></div>
     <div style="height:8px;background:#e6eef6;border-radius:5px;overflow:hidden;margin-top:3px"><div id="xpFill" style="height:100%;width:0;background:linear-gradient(90deg,#a06bff,#7b3ff2)"></div></div>
@@ -212,6 +212,7 @@
   let dailyMode=false, lastResult=null;                    // 오늘의 챌린지 / 공유용 마지막 결과
   let coins=parseInt(localStorage.getItem('marathon_coins')||'0'); // 코인(파워젤 구매용, 영구 저장)
   let drinkOpenUntil=0, gelCdUntil=0;                      // 급수대 물마시기 창 / 젤 쿨다운
+  let surgeGood=0, wallActive=false, wallDone=false, wallVfx=0, hiEndAt=0; // ⚡스퍼트 유지 / 🧱마의 벽 / 러너스하이 연출
   const GEL_COST=25, GEL_HEAL=35;
   const saveCoins=()=>{try{localStorage.setItem('marathon_coins',String(coins));}catch(e){}};
   const CHEERS=["좋아요 💪","가볍다 가벼워 ✨","리듬 최고 🎵","페이스 굿 👍","잘하고 있어요 🔥","그대로 유지 🙌"];
@@ -282,15 +283,17 @@
   function buildCourse(){
     course=[
       {to:0.10,type:'flat',d:0},
-      {to:0.22,type:'up',d:12},
-      {to:0.30,type:'down',d:-10},
-      {to:0.36,type:'water',d:0},
-      {to:0.48,type:'flat',d:0},
+      {to:0.19,type:'up',d:12},
+      {to:0.26,type:'down',d:-10},
+      {to:0.32,type:'water',d:0},
+      {to:0.42,type:'surge',d:24},   // ⚡ 스퍼트 챌린지
+      {to:0.51,type:'flat',d:0},
       {to:0.60,type:'up',d:14},
-      {to:0.68,type:'down',d:-12},
-      {to:0.74,type:'water',d:0},
-      {to:0.88,type:'up',d:12},
-      {to:1.01,type:'sprint',d:8},
+      {to:0.67,type:'down',d:-12},
+      {to:0.72,type:'water',d:0},
+      {to:0.81,type:'surge',d:26},   // ⚡ 2차 스퍼트
+      {to:0.90,type:'wall',d:6},     // 🧱 35km 마의 벽 (클라이맥스)
+      {to:1.01,type:'sprint',d:12},  // 🏁 라스트 스퍼트 + 포토피니시
     ];
     curSeg=null; curTarget=TARGET_CAD; splitKm=0;
   }
@@ -298,6 +301,8 @@
     if(seg.type==='up') setCoach("⛰️ 오르막! 케이던스 올려요 (+"+seg.d+")",'var(--warn)');
     else if(seg.type==='down') setCoach("⬇️ 내리막 — 케이던스 낮춰 편하게",'var(--accent)');
     else if(seg.type==='water') setCoach("💧 급수대! 박자 맞춰 물 마시기",'var(--accent)');
+    else if(seg.type==='surge'){ setCoach("⚡ 스퍼트 구간! 케이던스 폭발 — 지금 몰아쳐요!",'var(--bad)'); shake=Math.max(shake,7); surgeGood=0; }
+    else if(seg.type==='wall'){ setCoach("🧱 35km 마의 벽! 무너지지 마 — 리듬으로 버텨!!",'var(--bad)'); shake=Math.max(shake,10); wallActive=true; wallDone=false; gly=Math.min(gly,42); }
     else if(seg.type==='sprint'){ setCoach("🔥 라스트 스퍼트!! 전력 질주!",'var(--bad)'); shake=8; }
   }
   const cheer=()=>CHEERS[(splitKm-1)%CHEERS.length];
@@ -307,7 +312,15 @@
     // 현재 구간 판정 → 목표 케이던스 변동 / 급수대
     const frac=dist/TARGET_M; let seg=course[course.length-1];
     for(const sg of course){ if(frac<sg.to){ seg=sg; break; } }
-    if(seg!==curSeg){ curSeg=seg; curTarget=Math.max(120,TARGET_CAD+(seg.d||0)); setGaugeZone(); onSeg(seg); }
+    if(seg!==curSeg){
+      if(wallActive && seg.type!=='wall'){   // 🧱 벽 통과 = 러너스 하이 (클라이맥스 보상)
+        wallActive=false; wallDone=true; wallVfx=1; hiEndAt=now()+2600; shake=14;
+        setCoach("💥 벽을 뚫었다!! 러너스 하이 🔥🔥",'var(--ok)');
+        score+=1500; coins+=15*cmul(); runCoins+=15*cmul(); saveCoins();
+        for(let i=0;i<28;i++)sparks.push({x:W*0.28+(Math.random()*90-45),y:H*0.5-60,vx:Math.random()*9-4.5,vy:-(Math.random()*7+2),life:1});
+      }
+      curSeg=seg; curTarget=Math.max(120,TARGET_CAD+(seg.d||0)); setGaugeZone(); onSeg(seg);
+    }
     const water=(seg.type==='water');
     // 스플릿·응원: km 통과 시
     const kmNow=Math.floor(dist/1000);
@@ -318,7 +331,9 @@
     if(!halfT && dist>=TARGET_M/2) halfT=raceT;   // 하프 스플릿(네거티브 스플릿 판정용)
     const ahead=dist>=rivalDist;
     if(ahead!==rivalAhead){ rivalAhead=ahead; setCoach(ahead?(curPB>0?"🔥 내 최고기록 앞질렀어요!":"🔥 라이벌 추월!"):(curPB>0?"내 기록에 뒤지는 중 — 힘내요!":"라이벌이 앞서갔어요 — 따라잡아요!"), ahead?'var(--ok)':'var(--warn)'); }
-    if(seg.type==='sprint') shake=Math.max(shake,2.2);   // 스퍼트 구간 지속 럼블
+    if(seg.type==='surge') shake=Math.max(shake,2.6);    // ⚡ 스퍼트 구간 지속 럼블
+    if(seg.type==='sprint'){ shake=Math.max(shake,2.2);  // 🏁 라스트 스퍼트 럼블
+      if(Math.abs(dist-rivalDist)<TARGET_M*0.02 && now()>coachUntil) setCoach("📸 포토피니시!! 지금 전력 스퍼트!!!",'var(--bad)'); }
     // 메트로놈: 평소엔 목표 케이던스 박자, 급수대엔 물마시기 박자(느림) + 마시기 창 오픈
     const beatMs=water?620:60000/curTarget;
     if(!beatAt)beatAt=now()+beatMs;
@@ -342,11 +357,17 @@
       return;
     }
     const over=Math.max(0,cad-SUSTAIN)/60;
-    const drain=(over*8+(cad>0?0.9:0)+(1-eff)*3.5)*(buff().drain||1);                 // 신발: 소모 감소
-    const regen=((cad>0&&cad<=SUSTAIN)?(eff>0.8?1.4:0.8):0)*(buff().regen||1)*(1+lvl()*0.015); // 신발+레벨: 회복↑
+    const wallM=(seg.type==='wall');                                                   // 🧱 벽: 소모↑·회복↓
+    const drain=(over*8+(cad>0?0.9:0)+(1-eff)*3.5)*(buff().drain||1)*(wallM?1.7:1);   // 신발: 소모 감소
+    const regen=((cad>0&&cad<=SUSTAIN)?(eff>0.8?1.4:0.8):0)*(buff().regen||1)*(1+lvl()*0.015)*(wallM?0.4:1); // 신발+레벨: 회복↑
     gly=Math.max(0,Math.min(100,gly-drain*dtS+regen*dtS));
     let g=eff; if(gly<20)g*=0.5+0.5*(gly/20);
     speed=(cad/60)*strideFor(cad)*g*(buff().stride||1);                                // 신발: 속도↑
+    if(seg.type==='surge' && cad>=curTarget-CAD_TOL){   // ⚡ 스퍼트 유지 보상: 가속 + 점수·코인
+      speed*=1.14; surgeGood+=dtS; score+=Math.round(70*dtS);
+      if(surgeGood>=1){ surgeGood-=1; coins+=cmul(); runCoins+=cmul(); saveCoins(); shake=Math.max(shake,5);
+        judge={txt:"⚡ 스퍼트!",col:"#ff7a2f",t:now()}; for(let i=0;i<6;i++)sparks.push({x:W*0.28+(Math.random()*40-20),y:H*0.5-60,vx:Math.random()*7-3.5,vy:-(Math.random()*4+1.5),life:1}); }
+    }
     dist+=speed*dtS*SCALE; if(cad>1)raceT+=dtS*SCALE;
     scroll+=speed*dtS*SCROLL_K;
     gait += (cad/60)*Math.PI*dtS;   // 케이던스에 비례해 다리 회전(스텝당 π)
@@ -601,7 +622,18 @@
     ctx.fillStyle="#2a4133"; ctx.fillText(dTxt,W/2,H*0.30+1);
     const bw=W*0.7,bx=(W-bw)/2,by=H*0.33; ctx.fillStyle="#ffffff99"; ctx.fillRect(bx,by,bw,7); ctx.fillStyle="#ff6f9c"; ctx.fillRect(bx,by,bw*(dist/TARGET_M),7);
     const c=$("coach"); c.textContent=coachTxt||"L·R 번갈아 두드려요"; c.style.color=coachColor;
-    const shakeAmt=Math.max(shake,(running&&gly<15&&cad>1)?3:0);
+    // 🧱 마의 벽: 붉은 비네트 + 점멸 경고
+    if(wallActive){ ctx.save();
+      const rg=ctx.createRadialGradient(W/2,H*0.55,H*0.16,W/2,H*0.55,H*0.82);
+      rg.addColorStop(0,"rgba(120,0,20,0)"); rg.addColorStop(1,"rgba(120,0,20,0.55)");
+      ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+      ctx.globalAlpha=0.8+0.2*Math.sin(now()/90); ctx.fillStyle="#fff"; ctx.font="900 30px sans-serif"; ctx.textAlign="center";
+      ctx.fillText("🧱 마의 벽 — 버텨!!",W/2,H*0.5); ctx.restore(); }
+    // 💥 벽 돌파 섬광 + 러너스 하이
+    if(wallVfx>0.02){ ctx.save(); ctx.globalAlpha=wallVfx*0.55; ctx.fillStyle="#fff7d6"; ctx.fillRect(0,0,W,H); ctx.restore(); wallVfx*=0.88; }
+    if(now()<hiEndAt){ ctx.save(); ctx.fillStyle="#ff8a1e"; ctx.font="900 30px sans-serif"; ctx.textAlign="center";
+      ctx.globalAlpha=0.9; ctx.fillText("🔥 러너스 하이! 🔥",W/2,H*0.52); ctx.restore(); }
+    const shakeAmt=Math.max(shake,(running&&gly<15&&cad>1)?3:0,wallActive?4:0);
     cvs.style.transform=shakeAmt>0.4?("translate("+(((Math.random()*2-1)*shakeAmt)|0)+"px,"+(((Math.random()*2-1)*shakeAmt)|0)+"px)"):"";
     shake*=0.85;
   }
@@ -614,6 +646,7 @@
     running=true; dailyMode=!!daily; taps=[]; lastSide=null; lastTapT=now();
     dist=0;raceT=0;gly=100;eff=1;cad=0;cv=0;speed=0;formBreaks=0;legPhase=0;legTarget=0;bob=0;scroll=0;critT=0;gait=0;
     combo=0;maxCombo=0;score=0;nPerfect=0;nGood=0;nMiss=0;judge=null;sparks=[];rivalDist=0;rivalAhead=true;shake=0;runCoins=0;revived=false;
+    surgeGood=0;wallActive=false;wallDone=false;wallVfx=0;hiEndAt=0;
     halfT=0; pbGhostDist=0; curPB=parseFloat(localStorage.getItem('marathon_pb_'+curDist)||'0');  // PB 고스트 기준
     buildCourse();                    // 지형·급수대·스플릿 코스 생성
     setNext("L"); setCoach("박자에 맞춰 왼발(L)부터",'var(--ok)');
@@ -760,7 +793,10 @@
     const mm=loadMissions(); mm.perfect+=nPerfect; mm.dist+=Math.round(dist); mm.combo=Math.max(mm.combo,maxCombo);
     let mDone=[]; MISSIONS.forEach(mi=>{ if(!mm.done[mi.id]&&mi.get(mm)>=mi.tgt){ mm.done[mi.id]=1; coins+=mi.rew; xp+=mi.rew; mDone.push(mi.label); } });
     localStorage.setItem('marathon_missions',JSON.stringify(mm)); saveCoins(); saveXP();
-    let badges=[badge,neg,lvLine].filter(Boolean).join("<br>");
+    // 🧱 마의 벽 돌파 · 📸 포토피니시
+    let climax=""; if(wallDone) climax="🧱 <b>마의 벽 돌파!</b> 러너스 하이 보너스 +1500";
+    const pd=dist-rivalDist; let photo=""; if(Math.abs(pd)<TARGET_M*0.01) photo="📸 <b>포토피니시</b> — "+(pd>=0?"짜릿한 신승! 🏅":"아쉬운 판독패 😮‍💨");
+    let badges=[climax,photo,badge,neg,lvLine].filter(Boolean).join("<br>");
     if(mDone.length) badges+="<br>🎯 <b>미션 완료</b>: "+mDone.join(", ")+" (+코인)";
     stats = badges + "<br>" + stats;
     lastResult={dist:curDist,score,rank:lbRank};
