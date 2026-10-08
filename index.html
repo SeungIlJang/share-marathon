@@ -57,6 +57,9 @@
   .pad.bad{background:#ffe0e4;border-color:var(--bad);color:var(--bad);}
   .pad.next{border-color:var(--ok);color:var(--ok);}
   .pad.beat{transform:scale(1.05);border-color:var(--ok);color:var(--ok);background:#e4fbe9;box-shadow:0 0 0 6px #3fca6b55,0 0 30px #3fca6b99;}
+  .pad{position:relative;overflow:visible;}
+  .pad::after{content:"";position:absolute;inset:0;border-radius:28px;border:4px solid #3fca6b;opacity:0;transform:scale(var(--ring,1.8));pointer-events:none;transition:none;}
+  .pad.next::after{opacity:calc(1.1 - (var(--ring,1.8) - 1)*0.75);}  /* 링이 패드에 가까울수록(1에 수렴) 진해짐 */
 
   .overlay{position:absolute;inset:0;background:linear-gradient(160deg,#bfe6ffe8,#eaf9eee8);backdrop-filter:blur(4px);
     display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;z-index:10;}
@@ -206,6 +209,7 @@
   let course=[], curSeg=null, curTarget=175, splitKm=0;   // 구간 지형/급수대/스플릿
   let slope=0, drops=[];                                   // 슬로프 기울기 + 급수대 물방울
   let combo=0, maxCombo=0, score=0, nPerfect=0, nGood=0, nMiss=0, judge=null, sparks=[]; // 판정·콤보·점수
+  let beatEff=0.9;   // 박자 판정이 '속도'에 반영되는 승수 (PERFECT↑ 가속/추월, OFF↓ 휘청) — 0.5~1.35
   let rivalDist=0, rivalAhead=true;                        // 라이벌(고스트) 경주
   let shake=0;                                             // 화면 흔들림(콤보·스퍼트·위기)
   let runCoins=0, revived=false;                           // 이번 판 적립 코인 / 광고 부활 사용 여부
@@ -244,9 +248,9 @@
     if(!curSeg||curSeg.type==='water')return;
     const bm=60000/curTarget, err=Math.min(Math.abs(t-(beatAt-bm)),Math.abs(beatAt-t));
     let kind,col,pts;
-    if(err<bm*0.16){kind="PERFECT!";col="#3fca6b";pts=100;nPerfect++;gly=Math.min(100,gly+0.8);coins+=2*cmul();runCoins+=2*cmul();}
-    else if(err<bm*0.34){kind="GOOD";col="#4aa3ff";pts=55;nGood++;coins+=1*cmul();runCoins+=1*cmul();}
-    else {kind="OFF";col="#8496a8";pts=0;nMiss++;combo=0;}
+    if(err<bm*0.16){kind="PERFECT!";col="#3fca6b";pts=100;nPerfect++;gly=Math.min(100,gly+0.8);coins+=2*cmul();runCoins+=2*cmul(); beatEff=Math.min(1.35,beatEff+0.06);}  // 완벽 = 쭉 가속
+    else if(err<bm*0.34){kind="GOOD";col="#4aa3ff";pts=55;nGood++;coins+=1*cmul();runCoins+=1*cmul(); beatEff=Math.min(1.18,beatEff+0.015);}
+    else {kind="OFF";col="#8496a8";pts=0;nMiss++;combo=0; beatEff=Math.max(0.5,beatEff-0.15); bob=1.3; shake=Math.max(shake,3.5);}   // 빗나감 = 휘청·감속
     if(pts>0){combo++;maxCombo=Math.max(maxCombo,combo);score+=pts+combo*5;saveCoins();}
     if(pts>0&&combo>0&&combo%10===0){ shake=9; judge={txt:"🔥 "+combo+" COMBO!",col:"#ff6f9c",t:now()}; }
     else judge={txt:kind,col,t:now()};
@@ -365,8 +369,10 @@
     const drain=(over*8+(cad>0?0.9:0)+(1-eff)*3.5)*(buff().drain||1)*(wallM?1.7:1);   // 신발: 소모 감소
     const regen=((cad>0&&cad<=SUSTAIN)?(eff>0.8?1.4:0.8):0)*(buff().regen||1)*(1+lvl()*0.015)*(wallM?0.4:1); // 신발+레벨: 회복↑
     gly=Math.max(0,Math.min(100,gly-drain*dtS+regen*dtS));
+    beatEff += (0.9-beatEff)*Math.min(1,dtS*0.5);   // 박자 승수 중립(0.9)로 서서히 회귀 — 계속 잘 쳐야 빠름 유지
     let g=eff; if(gly<20)g*=0.5+0.5*(gly/20);
-    speed=(cad/60)*strideFor(cad)*g*(buff().stride||1);                                // 신발: 속도↑
+    speed=(cad/60)*strideFor(cad)*g*beatEff*(buff().stride||1);                        // 박자 판정이 속도에 직접 반영 + 신발
+    if(seg.type!=='wall' && speed>0) score+=Math.round(speed*dtS*2*(beatEff>1.05?1.5:1)); // 빠를수록·잘칠수록 점수↑
     if(seg.type==='surge' && cad>=curTarget-CAD_TOL){   // ⚡ 스퍼트 유지 보상: 가속 + 점수·코인
       speed*=1.14; surgeGood+=dtS; score+=Math.round(70*dtS);
       if(surgeGood>=1){ surgeGood-=1; coins+=cmul(); runCoins+=cmul(); saveCoins(); shake=Math.max(shake,5);
@@ -517,6 +523,11 @@
   }
 
   function render(){
+    // 비트 링: 다음 발판에 '쫙 좁아지는 원' — 패드에 닿는 순간(ring=1)이 PERFECT 타이밍
+    { const bm=(curSeg&&curSeg.type==='water')?620:60000/(curTarget||TARGET_CAD);
+      const nextPad=padL.classList.contains('next')?padL:padR, other=nextPad===padL?padR:padL;
+      if(running && beatAt){ let ph=(beatAt-now())/bm; if(ph<0)ph=0; if(ph>1)ph=1; nextPad.style.setProperty('--ring',(1+ph*0.9).toFixed(3)); }
+      other.style.setProperty('--ring','1.9'); }
     const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,"#8fd0ff"); g.addColorStop(.5,"#c3e9ff"); g.addColorStop(1,"#eaf9ee");
     ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
     const groundY=H*0.52;
@@ -650,7 +661,7 @@
     running=true; dailyMode=!!daily; taps=[]; lastSide=null; lastTapT=now();
     dist=0;raceT=0;gly=100;eff=1;cad=0;cv=0;speed=0;formBreaks=0;legPhase=0;legTarget=0;bob=0;scroll=0;critT=0;gait=0;
     combo=0;maxCombo=0;score=0;nPerfect=0;nGood=0;nMiss=0;judge=null;sparks=[];rivalDist=0;rivalAhead=true;shake=0;runCoins=0;revived=false;
-    surgeGood=0;wallActive=false;wallDone=false;wallVfx=0;hiEndAt=0;
+    surgeGood=0;wallActive=false;wallDone=false;wallVfx=0;hiEndAt=0; beatEff=0.9;
     halfT=0; pbGhostDist=0; curPB=parseFloat(localStorage.getItem('marathon_pb_'+curDist)||'0');  // PB 고스트 기준
     buildCourse();                    // 지형·급수대·스플릿 코스 생성
     setNext("L"); setCoach("박자에 맞춰 왼발(L)부터",'var(--ok)');
