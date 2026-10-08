@@ -1,4 +1,4 @@
-package com.seungiljang.marathon;
+package com.moduseries.marathon;
 
 import com.getcapacitor.BridgeActivity;
 

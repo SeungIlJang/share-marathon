@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">모두의 마라톤</string>
     <string name="title_activity_main">모두의 마라톤</string>
-    <string name="package_name">com.seungiljang.marathon</string>
-    <string name="custom_url_scheme">com.seungiljang.marathon</string>
+    <string name="package_name">com.moduseries.marathon</string>
+    <string name="custom_url_scheme">com.moduseries.marathon</string>
 </resources>
