@@ -1,0 +1,12 @@
+<!DOCTYPE html><html lang="ko"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"/>
+<title>모두의 마라톤</title>
+<style>html,body{margin:0;height:100%;background:#8fd0ff;overflow:hidden}#ld{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#2b5fa0;font-family:system-ui,sans-serif;gap:14px}.sp{width:42px;height:42px;border:5px solid rgba(255,255,255,.5);border-top-color:#2b5fa0;border-radius:50%;animation:sp .8s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}</style></head>
+<body><div id="ld"><div class="sp"></div><div>🏃 모두의 마라톤 불러오는 중…</div></div>
+<script>(function(){var GAME='marathon',REMOTE='https://seungiljang.github.io/games/'+GAME+'.html',KEY='ota_'+GAME,done=false;
+function render(h){try{document.open();document.write(h);document.close();}catch(e){location.replace('game.html');}}
+function fallback(){var c=null;try{c=localStorage.getItem(KEY);}catch(e){}if(c){render(c);}else{location.replace('game.html');}}
+var ctrl=window.AbortController?new AbortController():null;var to=setTimeout(function(){if(done)return;done=true;if(ctrl){try{ctrl.abort();}catch(e){}}fallback();},6000);
+try{fetch(REMOTE+'?t='+Date.now(),{cache:'no-store',signal:ctrl?ctrl.signal:undefined}).then(function(r){if(!r.ok)throw 0;return r.text();}).then(function(h){if(done)return;done=true;clearTimeout(to);if(!h||h.length<1000)throw 0;try{localStorage.setItem(KEY,h);}catch(e){}render(h);}).catch(function(){if(done)return;done=true;clearTimeout(to);fallback();});}catch(e){done=true;clearTimeout(to);fallback();}})();</script>
+</body></html>
