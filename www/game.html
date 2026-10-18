@@ -910,7 +910,7 @@ function showMenu(){ mode='race'; state='menu'; bgmOn=false; $("pauseBtn").style
   course=COURSES[selIdx]; weather='clear'; renderCourses(); renderMedals(); renderDaily();
   const total=COURSES.reduce((a,c)=>a+starsOf(c.id),0);
   $("howBox").style.display=total>0?"none":"grid";
-  $("menuMeta").innerHTML="🪙 "+coins+" · ⭐ "+total+"/"+(COURSES.length*3)+'<div style="font-size:11px;color:#8aa0b4;font-weight:400">v2.3 · 월드 메이저 커리어</div>'; }
+  $("menuMeta").innerHTML="🪙 "+coins+" · ⭐ "+total+"/"+(COURSES.length*3)+'<div style="font-size:11px;color:#8aa0b4;font-weight:400">v3.0 · 레이스</div>'; }
 $("startBtn").addEventListener("click",()=>startRace(false));
 $("dailyBtn").addEventListener("click",()=>startRace(true));
 $("againBtn").addEventListener("click",()=>startRace(daily));
