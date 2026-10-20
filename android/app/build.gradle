@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
 
-// 업로드 키 — android/keystore.properties (git 제외). 없으면 릴리스는 서명 없이 빌드
+// ?�로??????android/keystore.properties (git ?�외). ?�으�?릴리?�는 ?�명 ?�이 빌드
 def keystorePropsFile = rootProject.file('keystore.properties')
 def keystoreProps = new Properties()
 if (keystorePropsFile.exists()) keystorePropsFile.withInputStream { keystoreProps.load(it) }
@@ -12,8 +12,8 @@ android {
         applicationId "com.moduseries.marathon"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 6
-        versionName "3.3"
+        versionCode 7
+        versionName "3.4"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
