@@ -1,7 +1,7 @@
 # 모두의 마라톤 — Play 스토어 등록 자료
 
 - 패키지명: `com.moduseries.marathon` · 퍼블리셔: 모두의시리즈 · 카테고리: **게임 > 캐주얼** (또는 음악)
-- 버전: versionCode **4** / versionName **3.2** · targetSdk **36** · minSdk 24 · Capacitor 8
+- 버전: versionCode **5** / versionName **3.3** · targetSdk **36** · minSdk 24 · Capacitor 8
 - AAB: `android/app/build/outputs/bundle/release/app-release.aab` (아래 "릴리스 빌드"로 서명 후 생성)
 - 업로드 키: `C:\dev\keystores\marathon-upload.jks` (alias `marathon`) — ⚠️ **repo에 커밋 금지, 반드시 백업**(분실 시 업데이트 불가 → Play 지원팀에 키 재설정 요청 필요)
 - 개인정보처리방침 URL: `https://seungiljang.github.io/games/marathon-privacy.html`
@@ -47,9 +47,9 @@
 ■ 이런 분께 추천해요
 · 짧게 한 판씩 즐기는 리듬 게임을 좋아하는 분
 · 마라톤·러닝을 좋아하거나 서브4·서브3를 꿈꾸는 러너
-· 광고 없이 깔끔하게 즐기고 싶은 분
+· 가볍게 한 판씩 즐기고 싶은 분
 
-※ 광고·결제·개인정보 수집이 없습니다. 게임 기록은 기기에만 저장돼요.
+※ 인앱 결제는 없습니다. 게임 기록은 기기에만 저장돼요. (무료 제공을 위해 광고가 포함됩니다.)
 
 ---
 
@@ -74,10 +74,10 @@ Achievements, training upgrades, outfits, PB ghost and a shareable finisher cert
 | 항목 | 입력값 |
 |---|---|
 | 앱/게임 | 게임 · 무료 |
-| 광고 포함 | **아니요** |
+| 광고 포함 | **예** (AdMob 배너·전면·리워드) |
 | 콘텐츠 등급 설문 | 폭력·선정성·도박·사용자 간 소통·위치 공유 모두 "아니요" → 전체이용가 예상 |
 | 타겟층 | **13세 이상** 권장 (13세 미만 포함 시 '가족 정책' 추가 심사 대상) |
-| 데이터 보안 | 데이터 수집 **없음** · 데이터 공유 **없음** (진행도는 기기에만 저장, 서버 전송 없음) |
+| 데이터 보안 | 게임 진행도는 기기에만 저장(서버 전송 없음). 단, **AdMob 광고가 광고 식별자(기기 또는 기타 ID)를 수집**합니다 → 데이터 안전성에서 "기기 또는 기타 ID 수집·광고 목적" 체크. **광고 ID 선언 = "예"** |
 | 개인정보처리방침 | `https://seungiljang.github.io/games/marathon-privacy.html` |
 | 앱 액세스 | 모든 기능 제한 없음(로그인 없음) |
 | 정부 앱 / 금융 / 건강 | 해당 없음 |
