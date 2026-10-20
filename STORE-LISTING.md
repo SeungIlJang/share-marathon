@@ -1,7 +1,7 @@
 # 모두의 마라톤 — Play 스토어 등록 자료
 
 - 패키지명: `com.moduseries.marathon` · 퍼블리셔: 모두의시리즈 · 카테고리: **게임 > 캐주얼** (또는 음악)
-- 버전: versionCode **3** / versionName **3.1** · targetSdk **36** · minSdk 24 · Capacitor 8
+- 버전: versionCode **4** / versionName **3.2** · targetSdk **36** · minSdk 24 · Capacitor 8
 - AAB: `android/app/build/outputs/bundle/release/app-release.aab` (아래 "릴리스 빌드"로 서명 후 생성)
 - 업로드 키: `C:\dev\keystores\marathon-upload.jks` (alias `marathon`) — ⚠️ **repo에 커밋 금지, 반드시 백업**(분실 시 업데이트 불가 → Play 지원팀에 키 재설정 요청 필요)
 - 개인정보처리방침 URL: `https://seungiljang.github.io/games/marathon-privacy.html`
