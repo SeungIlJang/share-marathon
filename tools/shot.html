@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!-- 스토어 스크린샷 촬영용: 게임을 iframe으로 띄우고 디버그 훅(__mv2)으로 장면을 연출한다.
+     사용: tools/capture_screens.sh (헤드리스 Chrome) → store-assets/shot-*.png -->
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#000}iframe{border:0;width:100%;height:100%;display:block}</style></head>
+<body><iframe id="f" src="../marathon-v2.html"></iframe>
+<script>
+const scene=(location.search.match(/scene=(\w+)/)||[])[1]||'title';
+const f=document.getElementById('f');
+f.addEventListener('load',()=>setTimeout(()=>{
+  const w=f.contentWindow, d=f.contentDocument, g=w.__mv2;
+  w.localStorage.clear();
+  w.localStorage.setItem('mv2_coins','1280'); w.localStorage.setItem('mv2_name','마라토너');
+  if(scene==='title'){ g.title(); return; }
+  if(scene==='rhythm'){
+    g.rstart(2,true); const rs=g.rs, pend=[]; let t=0;
+    while(rs.simT<27.6&&t<60){ const now=rs.simT;
+      for(let i=rs.head;i<rs.notes.length;i++){ const n=rs.notes[i]; if(n.t>now+0.02)break;
+        if(!n.res&&!n._p&&now>=n.t-0.004){ n._p=1; g.rpress(n.lane); pend.push([n.lane,n.kind==='hold'?n.end+0.01:now+0.06]); } }
+      for(let i=pend.length-1;i>=0;i--) if(now>=pend[i][1]){ g.rrel(pend[i][0]); pend.splice(i,1); }
+      g.rstep(1/240); t+=1/240; }
+    rs.state='done';   // 이 프레임에서 정지
+    return; }
+  if(scene==='race'||scene==='result'){
+    w.localStorage.setItem('mv2_fin_seoul','3'); w.localStorage.setItem('mv2_star_seoul','3');
+    for(const id of ['chuncheon','tokyo','berlin','chicago']){ w.localStorage.setItem('mv2_star_'+id,'2'); }
+    g.course(scene==='race'?5:6); g.start(); for(let i=0;i<200;i++) g.step(1/60);
+    const stopKm=scene==='race'?33.2:99; let t=0, cd=0, b0=0;
+    while(g.state!=='done'&&g.P.pos<10000*stopKm/42.195&&t<300){ const P=g.P, km=P.pos/10000*42.195; cd-=1/60;
+      let hold=P.stam>45||km>40.2; if(((km%5)>4.6||(km%5)<0.12)&&km>4){ hold=false; if(P.lane===1&&cd<=0){ g.lane(1); cd=0.6; } }
+      if(P.stam<25) g.gel(); if(g.st.bumps>b0&&cd<=0){ b0=g.st.bumps; g.lane(P.lane===0?1:-1); cd=1; }
+      g.setHold(hold); g.step(1/60); t+=1/60; }
+    g.setHold(scene==='race');
+    if(scene==='result'){ const st=d.createElement('style'); st.textContent='#toast{display:none!important}'; d.head.appendChild(st); }
+    if(scene==='race'){ g.step(1/60); g.pause(); d.getElementById('pause').style.display='none'; }
+    return; }
+  if(scene==='shop'){ w.localStorage.setItem('mv2_outfits','["red","blue","gold"]'); w.localStorage.setItem('mv2_outfit','blue');
+    w.location.reload(); f.addEventListener('load',()=>setTimeout(()=>f.contentDocument.getElementById('shopBtn').click(),300),{once:true}); return; }
+},600),{once:true});
+</script></body></html>
