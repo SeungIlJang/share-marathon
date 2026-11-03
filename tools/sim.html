@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<!-- 밸런스 시뮬레이션: 헤드리스 Chrome --dump-dom 으로 실행하면 #out 에 JSON 결과가 들어간다.
+     ?len=quick|full &n=회수 -->
+<html><head><meta charset="utf-8"></head><body><iframe id="f" src="../marathon-v2.html" style="width:400px;height:800px;border:0"></iframe><pre id="out">running</pre>
+<script>
+const q=new URLSearchParams(location.search), LEN=q.get('len')||'quick', N=+(q.get('n')||5);
+const f=document.getElementById('f');
+f.addEventListener('load',()=>setTimeout(()=>{ try{
+  const w=f.contentWindow, g=w.__mv2, KM=42.195; w.localStorage.clear(); w.localStorage.setItem('mv2_len',LEN);
+  w.document.getElementById('modeRace').click();   // 메뉴 진입 → raceLen 반영
+  w.document.querySelector('[data-len="'+LEN+'"]').click();   // 화면의 길이 버튼으로 선택
+  function run(ci,mode){ g.course(ci); g.start(); for(let i=0;i<200;i++) g.step(1/60);
+    let t=0, cd=0, b0=0; const T=g.P&&w.__mv2? null:null;
+    while(g.state!=='done'&&t<600){ const P=g.P, km=(P.pos/(LEN==='full'?20000:10000))*KM, p=km/KM; cd-=1/60;
+      let hold;
+      if(mode==='spam') hold=true;
+      else { hold=P.stam>50||p>0.95; if(((km%5)>4.6||(km%5)<0.12)&&km>4){ hold=false; if(P.lane===1&&cd<=0){ g.lane(1); cd=0.6; } }
+        if(P.stam<25) g.gel(); if(g.st.bumps>b0&&cd<=0){ b0=g.st.bumps; const o=[P.lane-1,P.lane+1].filter(l=>l>=0&&l<3); g.lane(o[Math.floor(Math.random()*o.length)]-P.lane); cd=1; } }
+      g.setHold(hold); g.step(1/60); t+=1/60; }
+    g.setHold(false); return {r:g.rank0, sw:!!g.st.ev.sw, hi:!!g.st.ev.hi, t:Math.round(t)}; }
+  const out={len:LEN};
+  for(const ci of [0,5,7]) for(const m of (q.get('modes')||'casual').split(',')){ const rs=[]; for(let i=0;i<N;i++) rs.push(run(ci,m));
+    out['c'+ci+'_'+m]={avgRank:(rs.reduce((a,b)=>a+b.r,0)/rs.length).toFixed(1), sw:rs.filter(x=>x.sw).length+'/'+N, hi:rs.filter(x=>x.hi).length+'/'+N, sec:rs[0].t}; }
+  out.story=w.document.getElementById('rStory').innerText;
+  document.getElementById('out').textContent='RESULT '+JSON.stringify(out);
+} catch(e){ document.getElementById('out').textContent='ERROR '+e.message+' '+(e.stack||'').split(String.fromCharCode(10))[1]; } },500),{once:true});
+setTimeout(()=>{ if(document.getElementById('out').textContent==='running') document.getElementById('out').textContent='STILL running'; },2000);
+</script></body></html>
