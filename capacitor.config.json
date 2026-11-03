@@ -2,8 +2,13 @@
   "appId": "com.moduseries.marathon",
   "appName": "모두의 마라톤",
   "webDir": "www",
-  "android": { "backgroundColor": "#8fd0ff" },
+  "android": {
+    "backgroundColor": "#8fd0ff"
+  },
   "plugins": {
-    "SystemBars": { "insetsHandling": "css", "initialViewportFitValueHint": "cover" }
+    "SystemBars": {
+      "insetsHandling": "css",
+      "initialViewportFitValueHint": "cover"
+    }
   }
 }
