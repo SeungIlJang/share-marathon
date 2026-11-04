@@ -8,6 +8,12 @@ const scene=(location.search.match(/scene=(\w+)/)||[])[1]||'split';
 const f=document.getElementById('f');
 f.addEventListener('load',()=>setTimeout(()=>{
   const w=f.contentWindow, d=f.contentDocument, g=w.__mv2; w.localStorage.clear(); w.localStorage.setItem('mv2_name','지수');
+  if(scene==='title0'){ g.title(); return; }
+  if(scene==='menu1'){ w.localStorage.setItem('mv2_races','1'); d.getElementById('modeRace').click(); return; }
+  if(scene==='tut'||scene==='tut3'){ d.getElementById('heroStart').click(); for(let i=0;i<200;i++) g.step(1/60);
+    if(scene==='tut3'){ g.setHold(true); for(let i=0;i<90;i++) g.step(1/60); g.setHold(false); for(let i=0;i<70;i++) g.step(1/60); g.lane(1); for(let i=0;i<40;i++) g.step(1/60); }
+    else { g.setHold(true); for(let i=0;i<40;i++) g.step(1/60); return; }   // 누른 채로 진행 중 캡처
+    g.pause(); d.getElementById('pause').style.display='none'; return; }
   d.getElementById('modeRace').click();
   d.querySelector('[data-goal="12600"]').click();
   const km=()=>g.P.pos/10000*42.195;
