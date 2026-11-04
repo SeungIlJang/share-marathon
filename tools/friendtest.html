@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<!-- 도전장 왕복 검증: 완주 → 코드 → 디코딩 → 친구 고스트 레이스 → 결과. --dump-dom 으로 #out 확인 -->
+<html><head><meta charset="utf-8"></head><body><iframe id="f" src="../marathon-v2.html" style="width:100%;height:100%;border:0;position:fixed;inset:0"></iframe><pre id="out">running</pre>
+<script>
+const f=document.getElementById('f');
+f.addEventListener('load',()=>setTimeout(()=>{ try{
+  const w=f.contentWindow, d=f.contentDocument, g=w.__mv2; w.localStorage.clear(); w.localStorage.setItem('mv2_races','3'); w.localStorage.setItem('mv2_name','지수 Kim');
+  d.getElementById('modeRace').click();
+  function race(){ for(let i=0;i<200;i++) g.step(1/60); let t=0,cd=0,b0=0;
+    while(g.state!=='done'&&t<300){ const P=g.P, km=P.pos/10000*42.195; cd-=1/60; let hold=P.stam>50||km>40.2;
+      if(((km%5)>4.6||(km%5)<0.12)&&km>4){ hold=false; if(P.lane===1&&cd<=0){ g.lane(1); cd=0.6; } } if(P.stam<25) g.gel();
+      if(g.st.bumps>b0&&cd<=0){ b0=g.st.bumps; g.lane(P.lane===0?1:-1); cd=1; } g.setHold(hold); g.step(1/60); t+=1/60; } g.setHold(false); }
+  g.course(2); g.start(); race();
+  const lr=g.lastRace, code=g.enc(lr), dec=g.dec('보세요 https://x/marathon.html#g='+code+' 끝');
+  let maxErr=0; for(let i=0;i<lr.rec.length;i++) maxErr=Math.max(maxErr,Math.abs(dec.rec[i]-lr.rec[i]));
+  const pb=d.getElementById('rPB').innerText;
+  // 친구 도전
+  const SH=(location.search.match(/shot=(\w+)/)||[])[1];
+  if(SH==='race2'){ g.chal({ci:2,full:false,time:12300,name:'테스트',rec:Array.from({length:200},(_,i)=>i*54)}); d.getElementById('chalGo').click(); for(let i=0;i<200;i++) g.step(1/60); for(let i=0;i<600;i++){ g.setHold(g.P.stam>60); g.step(1/60); } g.setHold(false); return; }
+  g.chal(dec); d.getElementById('chalGo').click(); const fp0=g.friendPos(5);
+  if(SH==='race'){ for(let i=0;i<200;i++) g.step(1/60); g.setHold(false); for(let i=0;i<600;i++){ g.setHold(g.P.stam>60); g.step(1/60); } document.getElementById('out').textContent='GAP '+JSON.stringify({friend:Math.round(g.friendPos(g.raceT)), me:Math.round(g.P.pos), raceT:g.raceT.toFixed(1)}); g.pause(); d.getElementById('pause').style.display='none'; return; }
+  race();
+  if(SH==='send'){ setTimeout(()=>{ const st=d.createElement('style'); st.textContent='#toast{display:none!important}'; d.head.appendChild(st); d.getElementById('sendBtn').click(); },3200); }
+  const fr=d.getElementById('rFriend').innerText, info={codeLen:code.length, name:dec.name, ci:dec.ci, time:dec.time, myTime:lr.time, samples:lr.rec.length, maxErr, pb, friendPosAt5s:Math.round(fp0), friendResult:fr, bad:g.dec('abc')};
+  document.getElementById('out').textContent='RESULT '+JSON.stringify(info);
+} catch(e){ document.getElementById('out').textContent='ERROR '+e.message; } },500),{once:true});
+</script></body></html>
