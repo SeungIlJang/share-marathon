@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<!-- 시즌 흐름 검증: 훈련(리듬 자동 플레이) 2회 → 컨디션 → 대회 완주 → 주차 진행. --dump-dom 으로 #out 확인, ?shot=menu|rres 로 화면 -->
+<html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%}iframe{border:0;width:100%;height:100%;position:fixed;inset:0}</style></head><body><iframe id="f" src="../marathon-v2.html"></iframe><pre id="out" style="position:fixed;bottom:0;opacity:0">running</pre>
+<script>
+const SH=(location.search.match(/shot=(\w+)/)||[])[1];
+const f=document.getElementById('f');
+f.addEventListener('load',()=>setTimeout(()=>{ try{
+  const w=f.contentWindow, d=f.contentDocument, g=w.__mv2; w.localStorage.clear(); w.localStorage.setItem('mv2_races','1'); w.localStorage.setItem('mv2_rstar_warm','1');
+  const S=()=>JSON.parse(w.localStorage.getItem('mv2_season')||'{}');
+  d.getElementById('modeRace').click(); const card0=d.getElementById('season').innerText;
+  if(SH==='menu') return;
+  function rplay(i){ g.rstart(i,true); const rs=g.rs, pend=[]; let t=0;
+    while(!rs.finished&&t<200){ const now=rs.simT; for(let k=rs.head;k<rs.notes.length;k++){ const n=rs.notes[k]; if(n.t>now+0.02)break; if(!n.res&&!n._p&&now>=n.t-0.004){ n._p=1; g.rpress(n.lane); pend.push([n.lane,n.kind==='hold'?n.end+0.01:now+0.06]); } }
+      for(let k=pend.length-1;k>=0;k--) if(now>=pend[k][1]){ g.rrel(pend[k][0]); pend.splice(k,1); } g.rstep(1/240); t+=1/240; } }
+  rplay(1); const s1=S(); const rrMsg=d.getElementById('rrMsg').innerText;
+  if(SH==='rres') return;
+  rplay(0); const s2=S();
+  d.getElementById('rrRace').click(); const card2=d.getElementById('season').innerText;
+  d.getElementById('seasonGo').click(); for(let i=0;i<200;i++) g.step(1/60); let t=0;
+  while(g.state!=='done'&&t<300){ const P=g.P; g.setHold(P.stam>50||P.pos>9500); if(P.stam<25)g.gel(); g.step(1/60); t+=1/60; } g.setHold(false);
+  const s3=S(), rMsg=d.getElementById('rMsg').innerText;
+  document.getElementById('out').textContent='RESULT '+JSON.stringify({card0,s1,rrMsg,s2,card2,s3,rMsg});
+} catch(e){ document.getElementById('out').textContent='ERROR '+e.message; } },500),{once:true});
+</script></body></html>
