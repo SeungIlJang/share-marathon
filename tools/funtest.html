@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<!-- 최종 재미 검증: 플레이어 유형별 봇으로 실제 게임 코드를 돌려 지표를 뽑는다.
+     ?part=tut | race&c=코스 | rhythm | prog   (헤드리스 Chrome --dump-dom, #out 에 RESULT JSON)
+     게임 파일은 ?game= 로 바꿀 수 있음(기본 ../marathon-v2.html) -->
+<html><head><meta charset="utf-8"></head><body>
+<iframe id="f" style="width:400px;height:800px;border:0"></iframe><pre id="out">running</pre>
+<script>
+const q=new URLSearchParams(location.search), PART=q.get('part')||'race', N=+(q.get('n')||4);
+const f=document.getElementById('f'); f.src=q.get('game')||'../marathon-v2.html';
+const KM=42.195, gauss=()=>{ let u=0,v=0; while(!u)u=Math.random(); while(!v)v=Math.random(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); };
+f.addEventListener('load',()=>setTimeout(()=>{ try{
+  const w=f.contentWindow, d=f.contentDocument, g=w.__mv2, cv=d.getElementById('scene');
+  const tap=()=>{ const id=1000+Math.floor(Math.random()*1e6); cv.dispatchEvent(new w.PointerEvent('pointerdown',{pointerId:id,bubbles:true,clientX:120,clientY:300})); cv.dispatchEvent(new w.PointerEvent('pointerup',{pointerId:id,bubbles:true})); };
+  const km=()=>g.P.pos/(g.raceT!=null&&g.P?1:1)/10000*KM;
+  // ---- 플레이어 유형 ----
+  function policy(name){ let cd=0,b0=0,tapT=0;
+    return dt=>{ const P=g.P, k=P.pos/10000*KM, p=k/KM, gr=g.grade(); cd-=dt; tapT-=dt;
+      if(P.cramp>0){ g.setHold(false); if(name!=='idle'&&tapT<=0){ tap(); tapT=0.12; } return; }
+      if(name==='idle'){ g.setHold(false); return; }
+      if(name==='greedy'){ g.setHold(true); return; }
+      let hold, near=((k%5)>4.6||(k%5)<0.12)&&k>4;
+      if(name==='casual'){ hold=P.stam>50||p>0.95; }
+      else { hold=P.stam>(gr>0?80:gr<0?20:45)||p>0.95; }
+      if(near){ hold=false; if(P.lane===1&&cd<=0){ g.lane(Math.random()<.5?-1:1); cd=0.6; } }
+      if(P.stam<25) g.gel();
+      if(g.st.bumps>b0&&cd<=0){ b0=g.st.bumps; const o=[P.lane-1,P.lane+1].filter(l=>l>=0&&l<3); g.lane(o[Math.floor(Math.random()*o.length)]-P.lane); cd=1; }
+      if(name==='smart'&&P.draftHold>1.2&&P.stam>60&&cd<=0){ const o=[P.lane-1,P.lane+1].filter(l=>l>=0&&l<3); g.lane(o[0]-P.lane); cd=1; }
+      g.setHold(hold); }; }
+  function runRace(pol, onStep){ let t=0, tired=0, maxRk=0, minRk=10, rkSeries=[];
+    while(g.state==='count'){ g.step(1/60); }
+    while(g.state!=='done'&&t<400){ pol(1/60); g.step(1/60); t+=1/60; if(g.P.tired)tired+=1/60;
+      const rk=g.rank(); if(t>3){ maxRk=Math.max(maxRk,rk); minRk=Math.min(minRk,rk); } if(Math.abs(t%10)<1/60) rkSeries.push(rk); if(onStep)onStep(t); }
+    g.setHold(false);
+    const photo=g.R.some(r=>Math.abs(r.pos-g.P.pos)<40);
+    return {rank:g.rank0, sec:Math.round(t), tired:Math.round(tired), sw:!!g.st.ev.sw, hi:!!g.st.ev.hi, cramps:g.st.cramps, pass:g.st.pass, passed:g.st.passed, photo, maxRk, minRk, water:g.st.water, rkSeries}; }
+  const avg=(a,k)=>+(a.reduce((s,x)=>s+(+x[k]),0)/a.length).toFixed(1), pct=(a,k)=>Math.round(a.filter(x=>x[k]).length/a.length*100)+'%';
+  const out={part:PART};
+
+  if(PART==='tut'){ const res=[];
+    for(let i=0;i<N;i++){ w.localStorage.clear(); g.title(); d.getElementById('heroStart').click();
+      const casual=policy('casual'); let doneT=null, doneKm=null, stepT=[];
+      const pol=dt=>{ const T=g.tut; if(T&&!T.done){ const P=g.P;
+          if(T.step===0) g.setHold(true); else if(T.step===1) g.setHold(false);
+          else if(T.step===2){ g.setHold(false); g.lane(P.lane===2?-1:1); }
+          else if(T.step===3){ g.setHold(P.stam>60); }
+          else if(T.step===4){ g.setHold(false); if(P.lane===1) g.lane(1); }
+          else if(T.step===5){ g.setHold(true); g.gel(); }
+          if(stepT.length<T.step) stepT.push(Math.round(g.raceT)); }
+        else { if(T&&doneT==null){ doneT=Math.round(g.raceT); doneKm=+(g.P.pos/10000*KM).toFixed(1); } casual(dt); } };
+      const r=runRace(pol); r.tutDoneSec=doneT; r.tutDoneKm=doneKm; r.stepSec=stepT.join('/'); res.push(r); }
+    out.tutorial={completed:res.filter(r=>r.tutDoneSec!=null).length+'/'+N, doneSec:res.map(r=>r.tutDoneSec), doneKm:res.map(r=>r.tutDoneKm), stepSec:res.map(r=>r.stepSec),
+      firstRaceRank:res.map(r=>r.rank), sec:res.map(r=>r.sec), sw:pct(res,'sw'), hi:pct(res,'hi'), photo:pct(res,'photo')};
+  }
+
+  if(PART==='race'){ const C=+(q.get('c')||0); w.localStorage.clear(); w.localStorage.setItem('mv2_races',q.get('races')||'5'); d.getElementById('modeRace').click();
+    for(const pn of (q.get('p')||'idle,greedy,casual,smart').split(',')){ const res=[];
+      for(let i=0;i<N;i++){ g.course(C); g.start(); res.push(runRace(policy(pn))); }
+      out[pn]={rank:res.map(r=>r.rank).join(','), avgRank:avg(res,'rank'), sec:avg(res,'sec'), tiredSec:avg(res,'tired'), cramps:avg(res,'cramps'),
+        sw:pct(res,'sw'), hi:pct(res,'hi'), photo:pct(res,'photo'), pass:avg(res,'pass'), passed:avg(res,'passed'), rankSwing:avg(res.map(r=>({s:r.maxRk-r.minRk})),'s'),
+        water:avg(res,'water'), rkSeries:res[0].rkSeries.join('>')}; } }
+
+  if(PART==='rhythm'){ const tiers={pro:[0.025,0.01],avg:[0.045,0.04],new:[0.07,0.08],first:[0.09,0.13]};
+    for(const [tn,[sd,mp]] of Object.entries(tiers)){ const row=[];
+      for(let si=0;si<5;si++){ let fails=0, ranks=[];
+        for(let k=0;k<Math.max(2,Math.floor(N/2));k++){ g.rstart(si,true); const rs=g.rs, ev=[];
+          for(const n of rs.notes){ if(Math.random()<mp)continue; const o=gauss()*sd; ev.push({t:n.t+o,l:n.lane,d:1}); ev.push({t:(n.kind==='hold'?n.end+gauss()*sd:n.t+o+0.07),l:n.lane,d:0}); }
+          ev.sort((a,b)=>a.t-b.t); let j=0,guard=0;
+          while(!rs.finished&&guard<40000){ const now=rs.simT; while(j<ev.length&&ev[j].t<=now){ ev[j].d?g.rpress(ev[j].l):g.rrel(ev[j].l); j++; } g.rstep(1/120); guard++; }
+          const rk=d.getElementById('rrRank').textContent; ranks.push(rk); if(rk==='F')fails++; }
+        row.push(['warm','river','half','interval','full'][si]+':'+ranks.join('')); }
+      out[tn]=row.join('  '); } }
+
+  if(PART==='prog'){ w.localStorage.clear(); w.localStorage.setItem('mv2_races','1'); const log=[]; const pol=policy(q.get('p')||'casual');
+    let unlockAt={}, coins0=+w.localStorage.getItem('mv2_coins')||0;
+    for(let i=0;i<(+q.get('races')||18);i++){ d.getElementById('modeRace').click(); const go=d.getElementById('seasonGo'); const before=+(w.localStorage.getItem('mv2_coins')||0);
+      go.click(); const r=runRace(pol); const after=+(w.localStorage.getItem('mv2_coins')||0);
+      const course=(d.getElementById('rTime').innerText.split('·')[0]||'').trim();
+      for(let ci=0;ci<8;ci++){ if(unlockAt[ci]==null && (ci===0 || (+(w.localStorage.getItem('mv2_star_'+['seoul','chuncheon','tokyo','berlin','chicago','london','boston','nyc'][ci-1])||0)>=2) || (+(w.localStorage.getItem('mv2_fin_'+['seoul','chuncheon','tokyo','berlin','chicago','london','boston','nyc'][ci-1])||0)>=3))) unlockAt[ci]=i+1; }
+      log.push(course.replace(/[^가-힣A-Za-z ]/g,'').trim().slice(0,6)+' '+r.rank+'위 +'+(after-before)); }
+    out.log=log.join(' | '); out.unlockAtRace=unlockAt; out.coins=+(w.localStorage.getItem('mv2_coins')||0); }
+
+  document.getElementById('out').textContent='RESULT '+JSON.stringify(out);
+} catch(e){ document.getElementById('out').textContent='ERROR '+e.message+' @'+String(e.stack).split(String.fromCharCode(10))[1]; } },500),{once:true});
+</script></body></html>
