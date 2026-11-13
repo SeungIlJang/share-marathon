@@ -134,6 +134,8 @@ Cheering marathon crowd strip, seamless horizontally tileable, 1024x160 px, side
 
 ### 3-4. 결승 아치 (`finish-arch.png`, 400×420)
 
+게임에서는 도로 높이에 맞춰 세우고 가로를 화면 폭의 62%까지만 씁니다(가로가 조금 눌려 보일 수 있음). 기둥은 가늘게, 가운데는 완전히 투명하게 비워 주세요 — 러너가 그 사이로 지나갑니다. 현수막 글자 "FINISH"와 테이프는 게임이 그립니다.
+
 ```
 Marathon finish arch, front-side view, 400x420 px: red inflatable arch with a completely blank banner, a blank digital clock on top, colorful balloons on both pillars, checkered tape stretched across the road.
 ```

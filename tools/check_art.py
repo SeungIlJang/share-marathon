@@ -139,11 +139,11 @@ def rule_for(name):
     if name.startswith('item-'):
         return 'item', check_square((256, 256)), True
     if name == 'aid-station.png':
-        return 'other', check_square((600, 200)), False      # 게임 슬롯 아직 없음
+        return 'other', check_square((600, 200)), True
     if name.startswith('crowd-'):
-        return 'other', check_square((1024, 160)), False
+        return 'other', check_square((1024, 160)), True
     if name == 'finish-arch.png':
-        return 'other', check_square((400, 420)), False
+        return 'other', check_square((400, 420)), True
     if name == 'feature-1024x500.png':
         return 'other', check_opaque((1024, 500)), False     # 스토어용
     if name == 'icon-512.png':
