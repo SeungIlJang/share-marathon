@@ -21,18 +21,18 @@ f.addEventListener('load',()=>setTimeout(()=>{ try{
       let hold, near=((k%5)>4.6||(k%5)<0.12)&&k>4;
       if(name==='casual'){ hold=P.stam>50||p>0.95; }
       else { hold=P.stam>(gr>0?80:gr<0?20:45)||p>0.95; }
-      if(near){ hold=false; if(P.lane===1&&cd<=0){ g.lane(Math.random()<.5?-1:1); cd=0.6; } }
+      if(near){ hold=false; if(P.lane!==0&&P.lane!==4&&cd<=0){ g.lane(P.lane<2?-1:1); cd=0.35; } }   // 급수대는 바깥 레인(0·4)
       if(P.stam<25) g.gel();
       if(g.st.bumps>b0&&cd<=0){ b0=g.st.bumps; const o=[P.lane-1,P.lane+1].filter(l=>l>=0&&l<3); g.lane(o[Math.floor(Math.random()*o.length)]-P.lane); cd=1; }
       if(name==='smart'&&P.draftHold>1.2&&P.stam>60&&cd<=0){ const o=[P.lane-1,P.lane+1].filter(l=>l>=0&&l<3); g.lane(o[0]-P.lane); cd=1; }
       g.setHold(hold); }; }
-  function runRace(pol, onStep){ let t=0, tired=0, maxRk=0, minRk=10, rkSeries=[];
+  function runRace(pol, onStep){ let blk=0, t=0, tired=0, maxRk=0, minRk=10, rkSeries=[];
     while(g.state==='count'){ g.step(1/60); }
-    while(g.state!=='done'&&t<400){ pol(1/60); g.step(1/60); t+=1/60; if(g.P.tired)tired+=1/60;
-      const rk=g.rank(); if(t>3){ maxRk=Math.max(maxRk,rk); minRk=Math.min(minRk,rk); } if(Math.abs(t%10)<1/60) rkSeries.push(rk); if(onStep)onStep(t); }
+    while(g.state!=='done'&&t<400){ pol(1/60); g.step(1/60); t+=1/60; if(g.P.tired)tired+=1/60; if(g.P.blocked)blk+=1/60;
+      const rk=g.rank(); if(t>3){ maxRk=Math.max(maxRk,rk); minRk=Math.min(minRk,rk); } if(Math.abs(t%10)<1/60) rkSeries.push(rk+'@'+(g.P.pos/10000*42.195).toFixed(0)+'k'+Math.round(g.P.speed)+(g.P.blocked?'B':'')+(g.P.stumble>0?'S':'')); if(onStep)onStep(t); }
     g.setHold(false);
     const photo=g.R.some(r=>Math.abs(r.pos-g.P.pos)<40);
-    return {rank:g.rank0, sec:Math.round(t), tired:Math.round(tired), sw:!!g.st.ev.sw, hi:!!g.st.ev.hi, cramps:g.st.cramps, pass:g.st.pass, passed:g.st.passed, photo, maxRk, minRk, water:g.st.water, rkSeries}; }
+    return {blocked:Math.round(blk), bumps:g.st.bumps, rank:g.rank0, sec:Math.round(t), tired:Math.round(tired), sw:!!g.st.ev.sw, hi:!!g.st.ev.hi, cramps:g.st.cramps, pass:g.st.pass, passed:g.st.passed, photo, maxRk, minRk, water:g.st.water, rkSeries}; }
   const avg=(a,k)=>+(a.reduce((s,x)=>s+(+x[k]),0)/a.length).toFixed(1), pct=(a,k)=>Math.round(a.filter(x=>x[k]).length/a.length*100)+'%';
   const out={part:PART};
 
@@ -43,19 +43,19 @@ f.addEventListener('load',()=>setTimeout(()=>{ try{
           if(T.step===0) g.setHold(true); else if(T.step===1) g.setHold(false);
           else if(T.step===2){ g.setHold(false); g.lane(P.lane===2?-1:1); }
           else if(T.step===3){ g.setHold(P.stam>60); }
-          else if(T.step===4){ g.setHold(false); if(P.lane===1) g.lane(1); }
+          else if(T.step===4){ g.setHold(false); if(P.lane!==0&&P.lane!==4) g.lane(P.lane<2?-1:1); }
           else if(T.step===5){ g.setHold(true); g.gel(); }
           if(stepT.length<T.step) stepT.push(Math.round(g.raceT)); }
         else { if(T&&doneT==null){ doneT=Math.round(g.raceT); doneKm=+(g.P.pos/10000*KM).toFixed(1); } casual(dt); } };
       const r=runRace(pol); r.tutDoneSec=doneT; r.tutDoneKm=doneKm; r.stepSec=stepT.join('/'); res.push(r); }
     out.tutorial={completed:res.filter(r=>r.tutDoneSec!=null).length+'/'+N, doneSec:res.map(r=>r.tutDoneSec), doneKm:res.map(r=>r.tutDoneKm), stepSec:res.map(r=>r.stepSec),
-      firstRaceRank:res.map(r=>r.rank), sec:res.map(r=>r.sec), sw:pct(res,'sw'), hi:pct(res,'hi'), photo:pct(res,'photo')};
+      firstRaceRank:res.map(r=>r.rank), blocked:res.map(r=>r.blocked), bumps:res.map(r=>r.bumps), series:res.map(r=>r.rkSeries.join('>')), sec:res.map(r=>r.sec), sw:pct(res,'sw'), hi:pct(res,'hi'), photo:pct(res,'photo')};
   }
 
   if(PART==='race'){ const C=+(q.get('c')||0); w.localStorage.clear(); w.localStorage.setItem('mv2_races',q.get('races')||'5'); d.getElementById('modeRace').click();
     for(const pn of (q.get('p')||'idle,greedy,casual,smart').split(',')){ const res=[];
       for(let i=0;i<N;i++){ g.course(C); g.start(); res.push(runRace(policy(pn))); }
-      out[pn]={rank:res.map(r=>r.rank).join(','), avgRank:avg(res,'rank'), sec:avg(res,'sec'), tiredSec:avg(res,'tired'), cramps:avg(res,'cramps'),
+      out[pn]={blockedSec:avg(res,'blocked'), bumps:avg(res,'bumps'), rank:res.map(r=>r.rank).join(','), avgRank:avg(res,'rank'), sec:avg(res,'sec'), tiredSec:avg(res,'tired'), cramps:avg(res,'cramps'),
         sw:pct(res,'sw'), hi:pct(res,'hi'), photo:pct(res,'photo'), pass:avg(res,'pass'), passed:avg(res,'passed'), rankSwing:avg(res.map(r=>({s:r.maxRk-r.minRk})),'s'),
         water:avg(res,'water'), rkSeries:res[0].rkSeries.join('>')}; } }
 
