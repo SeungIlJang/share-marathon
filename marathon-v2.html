@@ -147,7 +147,7 @@
 <div class="ov" id="title">
   <h1 style="font-size:34px">🏃 모두의 마라톤</h1>
   <p id="titleSub">오늘은 어떻게 달려볼까요?</p>
-  <div style="font-size:11px;opacity:.6;margin-top:-4px">v4.6 · 21명 레이스(튜토리얼·HUD 다이어트)</div>
+  <div style="font-size:11px;opacity:.6;margin-top:-4px">v4.7 · 깔끔한 러너(튜토리얼·HUD 다이어트)</div>
   <div id="hero" style="display:none;flex-direction:column;align-items:center;gap:10px;width:100%;max-width:360px">
     <div class="mode" id="heroStart" style="background:linear-gradient(135deg,#ffffff,#ffe6ee);border-color:#ffb3cb;width:100%"><b class="mi">🏁</b><b>첫 레이스 시작</b><small>서울 코스에서 20명과 함께 달려요<br>조작은 달리면서 하나씩 알려드릴게요</small></div>
     <button class="pill" id="heroMore" style="flex:none;background:#eef3f8;color:var(--txt);box-shadow:none;padding:9px 18px;font-size:13px">먼저 둘러볼게요</button>
@@ -384,11 +384,22 @@ const rr=(x,y,w,h,r)=>{ ctx.beginPath(); if(ctx.roundRect)ctx.roundRect(x,y,w,h,
 const SPR_N=14;
 const img=new Image(); img.src='runner-sprite.png';
 const tints={};
-img.onload=()=>{ for(const r of RIVALS){
-  const c=document.createElement('canvas'); c.width=Math.round(img.width/2); c.height=Math.round(img.height/2);
+// 라이벌 색: 전체에 색을 덧씌우지 않고 빨간 유니폼(헤어밴드·셔츠·신발)만 러너 색으로 바꿈 → 피부·머리는 자연스럽게
+function hex2hsl(hex){ const n=parseInt(hex.slice(1),16), r=(n>>16&255)/255, g=(n>>8&255)/255, b=(n&255)/255, mx=Math.max(r,g,b), mn=Math.min(r,g,b), l=(mx+mn)/2, d=mx-mn;
+  let h=0; if(d){ h=mx===r?((g-b)/d)%6:mx===g?(b-r)/d+2:(r-g)/d+4; h*=60; if(h<0)h+=360; } return {h, s:d?d/(1-Math.abs(2*l-1)):0, l}; }
+function uniformTint(hex){ const c=document.createElement('canvas'); c.width=Math.round(img.width/2); c.height=Math.round(img.height/2);
   const x=c.getContext('2d'); x.drawImage(img,0,0,c.width,c.height);
-  x.globalCompositeOperation='source-atop'; x.globalAlpha=0.55; x.fillStyle=r.c; x.fillRect(0,0,c.width,c.height);
-  tints[r.c]=c; } };
+  try{ const T=hex2hsl(hex), d=x.getImageData(0,0,c.width,c.height), p=d.data, H=T.h/60;
+    for(let i=0;i<p.length;i+=4){ if(p[i+3]<20)continue; const r=p[i]/255,g=p[i+1]/255,b=p[i+2]/255, mx=Math.max(r,g,b), mn=Math.min(r,g,b), l=(mx+mn)/2, dd=mx-mn;
+      if(dd<0.25||mx!==r)continue; let h=((g-b)/dd)%6*60; if(h<0)h+=360; if(h>18&&h<340)continue;   // 빨강 계열만
+      const ps=l>0.5?dd/(2-mx-mn):dd/(mx+mn), S=ps*Math.min(1,0.25+T.s), L=Math.min(0.92,l*(0.45+1.1*T.l));
+      const C=(1-Math.abs(2*L-1))*S, X=C*(1-Math.abs(H%2-1)), m=L-C/2; let R2=0,G2=0,B2=0;
+      if(H<1){R2=C;G2=X;}else if(H<2){R2=X;G2=C;}else if(H<3){G2=C;B2=X;}else if(H<4){G2=X;B2=C;}else if(H<5){R2=X;B2=C;}else{R2=C;B2=X;}
+      p[i]=(R2+m)*255; p[i+1]=(G2+m)*255; p[i+2]=(B2+m)*255; }
+    x.putImageData(d,0,0);
+  }catch(e){ x.globalCompositeOperation='source-atop'; x.globalAlpha=0.45; x.fillStyle=hex; x.fillRect(0,0,c.width,c.height); }   // 픽셀 접근 불가 시 예전 방식
+  return c; }
+img.onload=()=>{ for(const r of RIVALS) tints[r.c]=uniformTint(r.c); };
 
 // ================= 사운드 =================
 let actx=null;
@@ -822,26 +833,26 @@ const HILLS=[]; for(let i=0;i<8;i++)HILLS.push({r:rand(110,190),k:i});
 // 🧍 체형: w=폭, h=키, legs=다리 길이(허리 아래만 늘임). 같은 스프라이트를 위·아래 두 조각으로 나눠 그린다
 const WAIST=0.66;   // 스프라이트 프레임에서 허리(반바지 위) 높이 비율
 const BODIES={
-  '번개':{w:0.70,h:1.05,legs:1.62},   // 마르고 다리 아주 긴 스프린터
-  '질주왕':{w:0.96,h:1.30,legs:1.22}, // 키 큰 에이스
-  '페이서':{w:0.90,h:1.10,legs:1.10},
-  '스퍼터':{w:1.26,h:0.96,legs:0.88}, // 다부진 근육형
-  '방해꾼':{w:1.58,h:0.92,legs:0.74}, // 뚱뚱
-  '바람돌이':{w:0.62,h:1.12,legs:1.22}, // 깡마름
-  '철인':{w:1.32,h:1.14,legs:1.00},   // 크고 단단함
-  '거북이':{w:1.30,h:0.68,legs:0.70}, // 작고 통통
-  '완주요정':{w:0.86,h:0.72,legs:0.92}, // 키 작음
-  '프로':{w:0.80,h:1.22,legs:1.32},     // 키 크고 마른 엘리트
-  '군인':{w:1.24,h:1.04,legs:1.00},     // 다부짐
-  '헬스왕':{w:1.48,h:1.00,legs:0.82},   // 상체 근육 덩어리
-  '아저씨':{w:1.42,h:0.88,legs:0.78},   // 배불뚝이
-  '할머니':{w:0.88,h:0.66,legs:0.82},   // 아주 작음
-  '대학생':{w:0.84,h:1.08,legs:1.16},
-  '모델':{w:0.66,h:1.26,legs:1.50},     // 깡마르고 다리 아주 김
-  '울트라':{w:0.78,h:1.00,legs:1.05},   // 잔근육 마름
-  '코스튬':{w:1.55,h:1.06,legs:0.72},   // 탈 쓴 펑퍼짐
-  '초보':{w:1.04,h:0.94,legs:0.94},
-  '쌍둥이':{w:0.94,h:0.86,legs:1.00},
+  '번개':{w:0.85,h:1.03,legs:1.34},   // 마르고 다리 아주 긴 스프린터
+  '질주왕':{w:0.98,h:1.20,legs:1.12}, // 키 큰 에이스
+  '페이서':{w:0.95,h:1.06,legs:1.06},
+  '스퍼터':{w:1.13,h:0.97,legs:0.93}, // 다부진 근육형
+  '방해꾼':{w:1.29,h:0.95,legs:0.86}, // 뚱뚱
+  '바람돌이':{w:0.81,h:1.08,legs:1.12}, // 깡마름
+  '철인':{w:1.16,h:1.09,legs:1.00},   // 크고 단단함
+  '거북이':{w:1.15,h:0.79,legs:0.83}, // 작고 통통
+  '완주요정':{w:0.93,h:0.82,legs:0.96}, // 키 작음
+  '프로':{w:0.90,h:1.14,legs:1.18},     // 키 크고 마른 엘리트
+  '군인':{w:1.12,h:1.03,legs:1.00},     // 다부짐
+  '헬스왕':{w:1.24,h:1.00,legs:0.90},   // 상체 근육 덩어리
+  '아저씨':{w:1.21,h:0.92,legs:0.88},   // 배불뚝이
+  '할머니':{w:0.94,h:0.78,legs:0.90},   // 아주 작음
+  '대학생':{w:0.92,h:1.05,legs:1.09},
+  '모델':{w:0.83,h:1.17,legs:1.27},     // 깡마르고 다리 아주 김
+  '울트라':{w:0.89,h:1.00,legs:1.03},   // 잔근육 마름
+  '코스튬':{w:1.27,h:1.04,legs:0.85},   // 탈 쓴 펑퍼짐
+  '초보':{w:1.02,h:0.96,legs:0.97},
+  '쌍둥이':{w:0.97,h:0.91,legs:1.00},
 };
 // 🚧 방해물: 한눈에 '막혔다'가 보이게 큼직하게 그림. 내 레인 앞에 오면 ⚠ 경고가 깜빡임
 function drawHazard(it,x,foot,s,lh){ const W0=Math.min(lh*1.25,70)*s, H0=Math.min(lh*0.7,40)*s, hit=it.used&&it.hitT!=null, age=hit?raceT-it.hitT:0;
@@ -975,7 +986,7 @@ function render(){
   list.sort((a,b)=>a.l-b.l||a.x-b.x);
   const bubbles=[];
   for(const d of list){
-    const foot=laneFoot(d.l), s=laneScale(d.l), h=Math.min(lh*1.32,W*0.2)*s;   // 캐릭터 축소(레인 5개 기준)
+    const foot=laneFoot(d.l), s=laneScale(d.l), h=Math.min(lh*1.1,W*0.165)*s;   // 캐릭터 한 번 더 축소 — 서로 덜 겹치게
     if(d.k==='i'&&(d.it.type==='cone'||d.it.type==='puddle')){ drawHazard(d.it,d.x,foot,s,lh); }
     else if(d.k==='i'){ const t=d.it.type; ctx.textAlign="center";
       const glow={cheer:"#ffd23f55",water:"#5bbdff55",gel:"#ff9f1c66",sponge:"#bfe9ff88",five:"#ffd23f55"}[t];
