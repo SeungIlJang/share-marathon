@@ -32,7 +32,11 @@ def is_red(r, g, b):
     h = ((g - b) / d) % 6 * 60
     if h < 0:
         h += 360
-    return h <= 18 or h >= 340
+    if 9 < h < 346:
+        return False
+    l = (mx + mn) / 2
+    sat = d / (2 - mx - mn) if l > 0.5 else d / (mx + mn)
+    return l >= 0.25 and sat >= 0.55   # 선명한 빨강만(갈색 머리·피부 제외)
 
 
 def check_runner(im, name):
@@ -73,7 +77,7 @@ def check_runner(im, name):
         if max(tops) - min(tops) > 40:
             warn.append(f"칸별 머리 높이 차이가 큼({max(tops) - min(tops)}px)")
     ratio = reds / max(1, opaque)
-    info.append(f"빨강 픽셀 비율 {ratio * 100:.1f}% (기존 러너 시트는 약 29%)")
+    info.append(f"빨강 픽셀 비율 {ratio * 100:.1f}% (기존 러너 시트는 약 20%)")
     if ratio < 0.04:
         err.append("빨강이 거의 없음 — 머리띠·소매·신발이 순수한 빨강인지 확인(게임이 색을 못 바꿈)")
     elif ratio > 0.40:
